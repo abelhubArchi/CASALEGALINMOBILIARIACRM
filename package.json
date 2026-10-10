@@ -29,7 +29,10 @@
 		"@google/generative-ai": "^0.24.1",
 		"@lucide/svelte": "^1.49.0",
 		"firebase": "^12.19.0",
+		"html-to-image": "^1.11.13",
 		"html2canvas": "^1.4.1",
+		"html2pdf.js": "^0.14.0",
+		"jspdf": "^4.2.1",
 		"lucide-svelte": "^1.0.1",
 		"svelte-dnd-action": "^0.9.79"
 	}

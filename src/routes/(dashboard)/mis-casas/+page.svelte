@@ -12,13 +12,11 @@
   let matches = $state([]);
   let loading = $state(true);
 
-  // Marketing Data
-  let marketingData = $state({
-    whatsapp: '', instagram: '', facebook: '', tiktok: '', fondoUrl: null, fondoFile: null, vistas: 0, leads: 0
-  });
-  let isSavingMarketing = $state(false);
-  let publicLink = $derived(authState.user ? `${window.location.origin}/agente/${authState.user.uid}` : '');
-  let linkCopied = $state(false);
+  // Marketing Data (only needed to get WhatsApp for sharing links)
+  let agentWhatsapp = $state('');
+
+  let shortUrlLoading = $state({});
+  let shortUrlCopied = $state({});
 
   const cargarDatos = async () => {
     if (!authState.user) return;
@@ -36,17 +34,10 @@
         matches = [];
       }
 
-      // Cargar info de marketing
+      // Cargar info de marketing para Whatsapp
       const docMkt = await getDoc(doc(db, 'marketing_agentes', authState.user.uid));
       if (docMkt.exists()) {
-        const d = docMkt.data();
-        marketingData.whatsapp = d.whatsapp || '';
-        marketingData.instagram = d.instagram || '';
-        marketingData.facebook = d.facebook || '';
-        marketingData.tiktok = d.tiktok || '';
-        marketingData.fondoUrl = d.fondoUrl || null;
-        marketingData.vistas = d.vistas || 0;
-        marketingData.leads = d.leads || 0;
+        agentWhatsapp = docMkt.data().whatsapp || '';
       }
     } catch (error) {
       console.error(error);
@@ -69,66 +60,10 @@
     }
   };
 
-  const handleFondoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      marketingData.fondoFile = file;
-      marketingData.fondoUrl = URL.createObjectURL(file);
-    }
-  };
-
-  const guardarMarketing = async () => {
-    if (!authState.user) return;
-    isSavingMarketing = true;
-    try {
-      let finalFondoUrl = marketingData.fondoUrl;
-      if (marketingData.fondoFile) {
-        const fileRef = ref(storage, `agentes/${authState.user.uid}/fondo_${Date.now()}`);
-        await uploadBytes(fileRef, marketingData.fondoFile);
-        finalFondoUrl = await getDownloadURL(fileRef);
-      }
-
-      await setDoc(doc(db, 'marketing_agentes', authState.user.uid), {
-        whatsapp: marketingData.whatsapp,
-        instagram: marketingData.instagram,
-        facebook: marketingData.facebook,
-        tiktok: marketingData.tiktok,
-        fondoUrl: finalFondoUrl,
-        agenteNombre: authState.profile?.nombres + " " + authState.profile?.apellidos,
-        agenteFoto: authState.profile?.documentos?.foto || '',
-        updatedAt: new Date()
-      });
-
-      alert("Tarjeta Digital actualizada con éxito.");
-    } catch (error) {
-      console.error(error); alert("Error al guardar: " + error.message);
-    } finally {
-      isSavingMarketing = false;
-    }
-  };
-
-  const copyLink = () => {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(publicLink);
-    } else {
-      let ta = document.createElement("textarea");
-      ta.value = publicLink;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-    }
-    linkCopied = true;
-    setTimeout(() => linkCopied = false, 2000);
-  };
-
-  let shortUrlLoading = $state({});
-  let shortUrlCopied = $state({});
-
   const generarLinkWhatsApp = async (prop) => {
     shortUrlLoading[prop.id] = true;
     try {
-      const agentePhone = marketingData.whatsapp || authState.profile?.telefono || '';
+      const agentePhone = agentWhatsapp || authState.profile?.telefono || '';
       if (!agentePhone) {
         alert("Por favor, configura tu número de WhatsApp en la pestaña 'Mi Marketing' primero.");
         return;
@@ -194,10 +129,6 @@
     <button onclick={() => currentTab = 'matches'} class="pb-4 px-2 font-bold text-sm uppercase tracking-widest transition-all relative {currentTab === 'matches' ? 'text-casa-teal' : 'text-gray-400 hover:text-gray-600'}">
       <span class="flex items-center gap-2"><UserPlus size={18}/> Casa de Matches</span>
       {#if currentTab === 'matches'}<div class="absolute bottom-0 left-0 w-full h-1 bg-casa-teal rounded-t-full"></div>{/if}
-    </button>
-    <button onclick={() => currentTab = 'marketing'} class="pb-4 px-2 font-bold text-sm uppercase tracking-widest transition-all relative {currentTab === 'marketing' ? 'text-casa-teal' : 'text-gray-400 hover:text-gray-600'}">
-      <span class="flex items-center gap-2"><Megaphone size={18}/> Mi Marketing</span>
-      {#if currentTab === 'marketing'}<div class="absolute bottom-0 left-0 w-full h-1 bg-casa-teal rounded-t-full"></div>{/if}
     </button>
   </div>
 
@@ -285,106 +216,6 @@
           {/each}
         </div>
       {/if}
-
-    {:else if currentTab === 'marketing'}
-      <div class="max-w-4xl mx-auto space-y-8">
-        
-        <!-- Tarjeta Digital Config -->
-        <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-          <div class="p-8 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-            <div>
-              <h2 class="text-xl font-bold text-casa-dark flex items-center gap-2"><Share2 class="text-casa-teal"/> Mi Tarjeta de Presentación Digital</h2>
-              <p class="text-sm text-gray-500 mt-1">Configura tus redes sociales para tu Landing Page tipo LinkTree, estilo Casa Legal.</p>
-            </div>
-            {#if publicLink}
-              <div class="flex items-center gap-2">
-                <a href={publicLink} target="_blank" class="p-2.5 bg-white text-casa-teal rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors" title="Ver Landing"><ExternalLink size={18}/></a>
-                <button onclick={copyLink} class="px-4 py-2.5 bg-casa-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm hover:bg-black transition-colors">
-                  {#if linkCopied}<Check size={16}/> Copiado{:else}<Copy size={16}/> Copiar Link{/if}
-                </button>
-              </div>
-            {/if}
-          </div>
-          
-          <!-- Analytics de Mi Marketing -->
-          <div class="px-8 pt-6 pb-2 grid grid-cols-2 gap-4">
-            <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
-              <div>
-                <p class="text-[10px] uppercase font-bold tracking-widest text-blue-400 mb-1">Vistas de tu Landing Page</p>
-                <p class="text-3xl font-black text-blue-600">{marketingData.vistas}</p>
-              </div>
-              <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              </div>
-            </div>
-            <div class="bg-green-50/50 border border-green-100 p-4 rounded-xl flex justify-between items-center">
-              <div>
-                <p class="text-[10px] uppercase font-bold tracking-widest text-green-400 mb-1">Clics en Contacto (Leads)</p>
-                <p class="text-3xl font-black text-green-600">{marketingData.leads}</p>
-              </div>
-              <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>
-              </div>
-            </div>
-          </div>
-
-          <form onsubmit={(e) => { e.preventDefault(); guardarMarketing(); }} class="p-8 space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">WhatsApp (Solo números con código ej: 59170000000)</label>
-                <div class="relative">
-                  <Phone size={18} class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" bind:value={marketingData.whatsapp} placeholder="591..." class="w-full pl-12 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-casa-teal outline-none" />
-                </div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Instagram (Link del perfil)</label>
-                <div class="relative">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                  <input type="text" bind:value={marketingData.instagram} placeholder="https://instagram.com/tuusuario" class="w-full pl-12 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-casa-teal outline-none" />
-                </div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Facebook (Link del perfil/página)</label>
-                <div class="relative">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-                  <input type="text" bind:value={marketingData.facebook} placeholder="https://facebook.com/tuusuario" class="w-full pl-12 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-casa-teal outline-none" />
-                </div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">TikTok (Link del perfil)</label>
-                <div class="relative">
-                  <LinkIcon size={18} class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" bind:value={marketingData.tiktok} placeholder="https://tiktok.com/@tuusuario" class="w-full pl-12 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-casa-teal outline-none" />
-                </div>
-              </div>
-            </div>
-
-            <div class="border-t border-gray-100 pt-8">
-              <label class="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-4">Fondo Personalizado (Aparecerá en tu tarjeta)</label>
-              <div class="flex items-center gap-6">
-                {#if marketingData.fondoUrl}
-                  <div class="w-48 h-32 rounded-2xl overflow-hidden border border-gray-200 shadow-sm shrink-0">
-                    <img src={marketingData.fondoUrl} alt="Fondo" class="w-full h-full object-cover" />
-                  </div>
-                {/if}
-                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
-                  <ImageIcon size={24} class="text-gray-400 mb-2 group-hover:scale-110 transition-transform"/>
-                  <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Subir nuevo fondo</span>
-                  <input type="file" accept="image/*" class="hidden" onchange={handleFondoChange} />
-                </label>
-              </div>
-            </div>
-
-            <div class="flex justify-end pt-4 border-t border-gray-100">
-              <button type="submit" disabled={isSavingMarketing} class="px-8 py-3.5 bg-casa-teal text-white font-bold rounded-xl flex items-center gap-2 hover:bg-[#0d3641] transition-colors shadow-lg uppercase tracking-wider text-sm disabled:opacity-50">
-                {#if isSavingMarketing}<Loader2 size={18} class="animate-spin" /> Guardando...{:else}<Save size={18} /> Guardar Mi Tarjeta Digital{/if}
-              </button>
-            </div>
-          </form>
-        </div>
-
-      </div>
     {/if}
   </div>
 </div>

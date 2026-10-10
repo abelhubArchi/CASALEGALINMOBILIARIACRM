@@ -5,9 +5,10 @@
   import { createUserWithEmailAndPassword } from 'firebase/auth';
   import { doc, setDoc } from 'firebase/firestore';
   import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+  import Credencial from '#lib/components/Credencial.svelte';
 
   let currentStep = $state(1);
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   let formData = $state({
     nombres: '',
@@ -60,6 +61,7 @@
   };
 
   let isLoading = $state(false);
+  let registeredAsesor = $state(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,13 +120,19 @@
 
       alert(`¡Asesor registrado exitosamente!\nSe ha creado la cuenta con su correo: ${formData.email}\nContraseña inicial: ${defaultPassword}`);
       
-      // Reiniciar formulario
-      currentStep = 1;
-      formData = {
-        nombres: '', apellidos: '', ci: '', email: '', telefono: '', rol: 'ASESOR', fechaNacimiento: '',
-        nit: '', calle: '', ciudad: '', departamento: 'Santa Cruz', experiencia: '0-2 años'
-      };
-      files = { foto: null, identificacion: null, comprobanteDomicilio: null, otrosDocumentos: [] };
+      // Convertir foto a Base64 local para renderizado inmediato sin CORS
+      let localFoto = fileUrls.foto || null;
+      if (files.foto) {
+        localFoto = await new Promise(res => {
+          const r = new FileReader();
+          r.onload = e => res(e.target.result);
+          r.readAsDataURL(files.foto);
+        });
+      }
+
+      // Mostrar Credencial
+      registeredAsesor = { ...formData, foto: localFoto };
+      currentStep = 5;
 
     } catch (error) {
       console.error("Error en Onboarding:", error);
@@ -156,7 +164,7 @@
         <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-100 rounded-full z-0"></div>
         <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-casa-teal rounded-full z-0 transition-all duration-700 ease-out" style="width: {(currentStep - 1) / (totalSteps - 1) * 100}%"></div>
         
-        {#each [1, 2, 3, 4] as step}
+        {#each [1, 2, 3, 4, 5] as step}
           <div class="relative z-10 flex flex-col items-center gap-2">
             <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-500
               {currentStep > step ? 'bg-casa-teal text-white shadow-md scale-110' : currentStep === step ? 'bg-casa-gold text-casa-dark shadow-xl ring-4 ring-casa-gold/30 scale-125' : 'bg-gray-200 text-gray-400'}">
@@ -166,11 +174,12 @@
                 {step}
               {/if}
             </div>
-            <span class="text-[10px] uppercase tracking-widest font-bold mt-2 {currentStep >= step ? 'text-casa-dark' : 'text-gray-400'} hidden md:block transition-colors duration-300">
-              {#if step === 1} Datos Personales
-              {:else if step === 2} Ubicación & NIT
-              {:else if step === 3} Expediente Digital
-              {:else} Acceso de Cuenta {/if}
+            <span class="text-[10px] uppercase tracking-widest font-bold mt-2 {currentStep >= step ? 'text-casa-dark' : 'text-gray-400'} hidden md:block transition-colors duration-300 text-center">
+              {#if step === 1} Datos
+              {:else if step === 2} Ubicación
+              {:else if step === 3} Expediente
+              {:else if step === 4} Acceso
+              {:else} Credencial {/if}
             </span>
           </div>
         {/each}
@@ -392,6 +401,13 @@
         </div>
       {/if}
 
+      <!-- STEP 5: Credencial -->
+      {#if currentStep === 5 && registeredAsesor}
+        <div class="p-8 md:p-12 absolute inset-0 animate-in fade-in slide-in-from-right-8 duration-500 overflow-y-auto bg-gray-50">
+          <Credencial asesor={registeredAsesor} />
+        </div>
+      {/if}
+
     </form>
 
     <!-- Footer / Controls -->
@@ -404,7 +420,7 @@
         <ChevronLeft size={18} /> Anterior
       </button>
 
-      {#if currentStep < totalSteps}
+      {#if currentStep < totalSteps - 1}
         <button 
           type="button"
           onclick={nextStep}
@@ -412,7 +428,7 @@
         >
           Siguiente <ChevronRight size={18} />
         </button>
-      {:else}
+      {:else if currentStep === 4}
         <button 
           type="button"
           onclick={handleSubmit}
@@ -424,6 +440,22 @@
           {:else}
             Finalizar Alta en CRM <CheckCircle size={18} />
           {/if}
+        </button>
+      {:else if currentStep === 5}
+        <button 
+          type="button"
+          onclick={() => {
+            currentStep = 1;
+            formData = {
+              nombres: '', apellidos: '', ci: '', email: '', telefono: '', rol: 'ASESOR', fechaNacimiento: '',
+              nit: '', calle: '', ciudad: '', departamento: 'Santa Cruz', experiencia: '0-2 años'
+            };
+            files = { foto: null, identificacion: null, comprobanteDomicilio: null, otrosDocumentos: [] };
+            registeredAsesor = null;
+          }}
+          class="px-8 py-3 bg-casa-teal text-white rounded-xl font-bold uppercase tracking-wider text-sm flex items-center gap-2 hover:bg-[#061C13] transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
+        >
+          Registrar Otro Asesor <Plus size={18} />
         </button>
       {/if}
     </div>

@@ -62,7 +62,7 @@
       <input 
         type="text" 
         bind:value={searchQuery} 
-        placeholder="Buscar asesor por nombre, correo o CI..." 
+        placeholder="Buscar asesor por nombre, correo o especialidad..." 
         class="w-full pl-12 pr-4 py-3 bg-gray-50 border-transparent rounded-xl focus:ring-2 focus:ring-casa-teal focus:bg-white outline-none transition-colors text-sm font-medium" 
       />
     </div>
