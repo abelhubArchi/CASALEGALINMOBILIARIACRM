@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
-import { OAuth2Client } from 'google-auth-library';
+import { OAuth2Client, GoogleAuth } from 'google-auth-library';
+import { env } from '$env/dynamic/private';
 import { execSync } from 'child_process';
 
 let cachedClient = null;
@@ -7,30 +8,57 @@ let cachedClient = null;
 export async function getGeminiClient() {
   if (cachedClient) return cachedClient;
 
-  // 1. Si existe GEMINI_API_KEY en variables de entorno
-  if (process.env.GEMINI_API_KEY) {
+  // 1. Verificar GEMINI_API_KEY o GOOGLE_API_KEY (Recomendado y estándar para Vercel / Producción)
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (apiKey && apiKey.trim()) {
     cachedClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY
+      apiKey: apiKey.trim()
     });
     return cachedClient;
   }
 
-  // 2. Vertex AI con autenticación de Google Cloud
-  const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
-  const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+  // 2. Si se proporcionó una clave de cuenta de servicio de Google Cloud en JSON (en Vercel / Servidor)
+  const serviceAccountJson = env.GOOGLE_APPLICATION_CREDENTIALS_JSON || env.GCP_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
+  if (serviceAccountJson && serviceAccountJson.trim()) {
+    try {
+      const credentials = JSON.parse(serviceAccountJson.trim());
+      const projectId = credentials.project_id || env.GOOGLE_CLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
+      const location = env.GOOGLE_CLOUD_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+      const auth = new GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform']
+      });
+      const authClient = await auth.getClient();
+
+      cachedClient = new GoogleGenAI({
+        vertexai: true,
+        project: projectId,
+        location: location,
+        googleAuthOptions: {
+          authClient
+        }
+      });
+      return cachedClient;
+    } catch (errJson) {
+      console.warn('Error al parsear GOOGLE_APPLICATION_CREDENTIALS_JSON:', errJson.message);
+    }
+  }
+
+  // 3. Entorno de desarrollo local (Windows / Linux con gcloud CLI autenticado)
+  const projectId = env.GOOGLE_CLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
+  const location = env.GOOGLE_CLOUD_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
   try {
-    // Si estamos en entorno de desarrollo local y gcloud está activo
     let token = '';
     const gcloudPath = 'C:\\Program Files (x86)\\Google\\Cloud SDK\\google-cloud-sdk\\bin\\gcloud.cmd';
     try {
       token = execSync(`"${gcloudPath}" auth print-access-token`).toString().trim();
     } catch {
-      // Fallback a gcloud en PATH
       try {
         token = execSync('gcloud auth print-access-token').toString().trim();
       } catch {
-        // gcloud no disponible directamente
+        // gcloud CLI no disponible
       }
     }
 
@@ -49,17 +77,30 @@ export async function getGeminiClient() {
       return cachedClient;
     }
   } catch (e) {
-    console.warn('No se pudo obtener token de gcloud local, intentando credenciales por defecto:', e.message);
+    // No disponible gcloud local
   }
 
-  // 3. Credenciales predeterminadas (Cloud Run / App Engine / GOOGLE_APPLICATION_CREDENTIALS)
-  cachedClient = new GoogleGenAI({
-    vertexai: true,
-    project: projectId,
-    location: location
-  });
+  // 4. Entorno nativo Google Cloud (Cloud Run / App Engine con Service Account asignada)
+  if (process.env.K_SERVICE || process.env.GAE_SERVICE || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    try {
+      cachedClient = new GoogleGenAI({
+        vertexai: true,
+        project: projectId,
+        location: location
+      });
+      return cachedClient;
+    } catch (e) {
+      // Continuar al error explícito
+    }
+  }
 
-  return cachedClient;
+  // 5. Si ninguna credencial fue encontrada (ej. Vercel sin GEMINI_API_KEY configurada)
+  throw new Error(
+    'Configuración requerida en Vercel: Falta definir la variable GEMINI_API_KEY. ' +
+    'Para solucionarlo: 1) Genera tu clave en https://aistudio.google.com/apikey ' +
+    '2) En Vercel ve a Settings -> Environment Variables y agrega GEMINI_API_KEY con tu clave. ' +
+    '3) Realiza un nuevo deploy.'
+  );
 }
 
 /**
