@@ -6,6 +6,7 @@
   import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { getDualPrice } from '#lib/currency';
 
   let currentTab = $state('mis-inmuebles');
   let misInmuebles = $state([]);
@@ -106,6 +107,20 @@
     } finally {
       shortUrlLoading[prop.id] = false;
     }
+  const cambiarEstadoPropiedad = async (propId, nuevoEstado) => {
+    try {
+      await updateDoc(doc(db, 'inmuebles', propId), { estado: nuevoEstado });
+      const idx = misInmuebles.findIndex(p => p.id === propId);
+      if (idx !== -1) {
+        misInmuebles[idx].estado = nuevoEstado;
+      }
+      if (nuevoEstado === 'Vendido') {
+        alert("🎉 ¡Felicidades por la venta! Marcaste el inmueble como VENDIDO. Esto sumará +100 PTS a tu Casa Legal Score.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error al actualizar estado: " + e.message);
+    }
   };
 </script>
 
@@ -148,16 +163,55 @@
       {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {#each misInmuebles as prop}
+            {@const prices = getDualPrice(prop.precioLista, prop.moneda)}
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group hover:shadow-lg transition-shadow flex flex-col">
               <a href="/inmuebles/{prop.id}" class="p-4 flex gap-4 border-b border-gray-100/50">
                 <img src={prop.fotoPrincipal} alt="Portada" class="w-32 h-32 object-cover rounded-xl border border-gray-200 group-hover:opacity-90 transition-opacity" />
                 <div class="flex-1 flex flex-col justify-center">
-                  <span class="bg-gray-100 text-casa-dark text-[9px] font-extrabold px-2 py-1 rounded uppercase tracking-widest w-fit mb-1">{prop.tipoOperacion}</span>
+                  <div class="flex items-center gap-1.5 mb-1">
+                    <span class="bg-gray-100 text-casa-dark text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">{prop.tipoOperacion}</span>
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider {prop.estado === 'Vendido' ? 'bg-purple-100 text-purple-700 font-black' : prop.estado === 'Reservado' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}">
+                      {prop.estado || 'Activo'}
+                    </span>
+                  </div>
                   <h3 class="font-bold text-casa-dark leading-tight mb-1 line-clamp-2">{prop.tituloPropiedad || prop.tipoInmueble + ' en ' + prop.zona}</h3>
                   <p class="text-xs text-gray-500 flex items-center gap-1 mb-2"><MapPin size={12}/> {prop.ciudad}</p>
-                  <span class="text-casa-teal font-black text-lg">${prop.precioLista}</span>
+                  <div class="flex flex-col">
+                    <span class="text-casa-teal font-black text-lg leading-tight">{prices.usdFormatted} <span class="text-[9px] uppercase font-bold text-gray-400">USD</span></span>
+                    <span class="text-xs font-bold text-[#D4AF37] font-mono">{prices.bobFormatted}</span>
+                  </div>
                 </div>
               </a>
+              
+              <!-- Selector rápido de estado para Casa Legal Score -->
+              <div class="px-3 py-2 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-xs">
+                <span class="text-[10px] uppercase font-bold text-gray-400">Estado:</span>
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onclick={() => cambiarEstadoPropiedad(prop.id, 'Activo')}
+                    class="px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all {prop.estado === 'Activo' || !prop.estado ? 'bg-emerald-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+                  >
+                    Activo
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => cambiarEstadoPropiedad(prop.id, 'Reservado')}
+                    class="px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all {prop.estado === 'Reservado' ? 'bg-amber-500 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+                  >
+                    Reservado
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => cambiarEstadoPropiedad(prop.id, 'Vendido')}
+                    class="px-2 py-0.5 rounded text-[10px] font-black uppercase transition-all {prop.estado === 'Vendido' ? 'bg-purple-600 text-white shadow-xs' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'}"
+                    title="Marcar como Vendido (+100 PTS Score)"
+                  >
+                    🎉 Vendido (+100)
+                  </button>
+                </div>
+              </div>
+
               <div class="p-3 bg-gray-50 flex items-center justify-between">
                 <div class="flex gap-4">
                   <div class="text-[10px] text-gray-400 uppercase font-bold">Vistas: <span class="text-casa-dark">{prop.vistas}</span></div>
@@ -186,13 +240,17 @@
       {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {#each matches as prop}
+            {@const prices = getDualPrice(prop.precioLista, prop.moneda)}
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group hover:shadow-lg transition-shadow flex flex-col">
               <a href="/inmuebles/{prop.id}" class="p-4 flex gap-4 h-full border-b border-gray-100/50">
                 <img src={prop.fotoPrincipal} alt="Portada" class="w-24 h-24 object-cover rounded-xl border border-gray-200 group-hover:opacity-90 transition-opacity" />
                 <div class="flex-1 flex flex-col justify-center pr-6">
                   <h3 class="font-bold text-sm text-casa-dark leading-tight mb-1 line-clamp-2">{prop.tituloPropiedad || prop.tipoInmueble + ' en ' + prop.zona}</h3>
-                  <p class="text-[10px] text-gray-400 uppercase font-bold mb-2">De: {prop.agenteNombre}</p>
-                  <span class="text-casa-teal font-black text-sm">${prop.precioLista}</span>
+                  <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">De: {prop.agenteNombre}</p>
+                  <div class="flex flex-col">
+                    <span class="text-casa-teal font-black text-sm leading-tight">{prices.usdFormatted} <span class="text-[8px] uppercase font-bold text-gray-400">USD</span></span>
+                    <span class="text-[11px] font-bold text-[#D4AF37] font-mono">{prices.bobFormatted}</span>
+                  </div>
                 </div>
               </a>
               <button onclick={(e) => { e.preventDefault(); desconectarMatch(prop.id); }} class="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors bg-white/80 backdrop-blur rounded-full p-1.5 shadow-sm" title="Desconectar">

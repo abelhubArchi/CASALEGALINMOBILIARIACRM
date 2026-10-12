@@ -127,7 +127,7 @@
       };
 
       await setDoc(newDocRef, inmuebleData);
-      alert("¡Inmueble publicado exitosamente en el Inventario Casa!");
+      alert("🎉 ¡Inmueble publicado exitosamente en el Inventario! Tu captación sumó puntos automáticamente en Casa Legal Score.");
       goto('/inventario');
       
     } catch (error) {

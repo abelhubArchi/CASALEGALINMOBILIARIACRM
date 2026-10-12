@@ -15,6 +15,7 @@
   let propId = $state('');
 
   let formData = $state({
+    estado: 'Activo',
     propietarioNombre: '', propietarioCI: '', propietarioTel1: '', propietarioTel2: '', propietarioEmail: '', propietarioDir: '',
     tipoRepresentacion: 'Exclusiva', fechaInicio: '', fechaVencimiento: '', comision: '', notasInternas: '', llavesOficina: false, ubicacionLlaves: '',
     tituloPropiedad: '', descripcionPropiedad: '', tipoOperacion: 'Venta', tipoInmueble: 'Casa', precioLista: '', moneda: 'USD', expensas: '', formaPago: 'Al contado',
@@ -260,8 +261,16 @@
               </section>
 
               <section>
-                <h2 class="text-lg font-bold text-casa-dark border-b border-gray-100 pb-2 mb-6">2. Clasificación Comercial</h2>
+                <h2 class="text-lg font-bold text-casa-dark border-b border-gray-100 pb-2 mb-6">2. Clasificación Comercial & Estado</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div class="space-y-2 lg:col-span-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Estado del Inmueble (Score)</label>
+                    <select bind:value={formData.estado} class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-casa-teal outline-none font-bold {formData.estado === 'Vendido' ? 'text-purple-700 bg-purple-50' : formData.estado === 'Reservado' ? 'text-amber-800 bg-amber-50' : 'text-emerald-700 bg-emerald-50'}">
+                      <option value="Activo">Activo (Disponible)</option>
+                      <option value="Reservado">Reservado</option>
+                      <option value="Vendido">Vendido (+100 PTS Score)</option>
+                    </select>
+                  </div>
                   <div class="space-y-2 lg:col-span-2">
                     <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Operación</label>
                     <select bind:value={formData.tipoOperacion} class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-casa-teal outline-none">

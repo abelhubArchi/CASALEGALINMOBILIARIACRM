@@ -4,12 +4,32 @@
   import { onMount } from 'svelte';
   import { authState } from '#lib/authStore.svelte.js';
   import { db } from '#lib/firebase';
-  import { doc, getDoc } from 'firebase/firestore';
+  import { doc, getDoc, updateDoc } from 'firebase/firestore';
   import { goto } from '$app/navigation';
+  import { getDualPrice } from '#lib/currency';
 
   let property = $state(null);
   let loading = $state(true);
   let activeImage = $state('');
+  let isUpdatingEstado = $state(false);
+  let dualPrice = $derived(property ? getDualPrice(property.precioLista, property.moneda) : null);
+
+  const cambiarEstado = async (nuevoEstado) => {
+    if (!property?.id) return;
+    isUpdatingEstado = true;
+    try {
+      await updateDoc(doc(db, 'inmuebles', property.id), { estado: nuevoEstado });
+      property.estado = nuevoEstado;
+      if (nuevoEstado === 'Vendido') {
+        alert("🎉 ¡Felicidades por la venta! Marcaste el inmueble como VENDIDO. Sumaste +100 PTS a tu Casa Legal Score.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error al actualizar estado: " + e.message);
+    } finally {
+      isUpdatingEstado = false;
+    }
+  };
   
   // Para el Lightbox de documentos/fotos
   let lightboxImage = $state(null);
@@ -95,6 +115,45 @@
       </div>
       
       {#if property.agenteId === authState.user?.uid}
+        <!-- Selector de Estado de Inmueble (Impacto en Score) -->
+        <div class="flex items-center bg-gray-100 p-1 rounded-xl">
+          <button
+            type="button"
+            onclick={() => cambiarEstado('Activo')}
+            disabled={isUpdatingEstado || property.estado === 'Activo'}
+            class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all {property.estado === 'Activo' || !property.estado
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-gray-500 hover:text-gray-800'}"
+          >
+            Activo
+          </button>
+          <button
+            type="button"
+            onclick={() => cambiarEstado('Reservado')}
+            disabled={isUpdatingEstado || property.estado === 'Reservado'}
+            class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all {property.estado === 'Reservado'
+              ? 'bg-amber-500 text-white shadow-xs'
+              : 'text-gray-500 hover:text-gray-800'}"
+          >
+            Reservado
+          </button>
+          <button
+            type="button"
+            onclick={() => cambiarEstado('Vendido')}
+            disabled={isUpdatingEstado || property.estado === 'Vendido'}
+            class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all {property.estado === 'Vendido'
+              ? 'bg-purple-700 text-white shadow-xs'
+              : 'text-amber-800 hover:bg-amber-200'}"
+            title="Marcar como Vendido (+100 PTS)"
+          >
+            🎉 Vendido (+100)
+          </button>
+        </div>
+
+        <a href="/inmuebles/{property.id}/marketing" class="bg-casa-gold/20 text-casa-dark border border-casa-gold/40 px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 hover:bg-casa-gold/30 transition-colors uppercase tracking-wider text-xs">
+          Flyers Mkt
+        </a>
+
         <a href="/inmuebles/{property.id}/editar" class="bg-gray-100 text-gray-600 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 transition-colors uppercase tracking-wider text-xs">
           <Edit size={14} /> Editar
         </a>
@@ -148,7 +207,8 @@
             </div>
             <div class="text-right mt-4 md:mt-0 bg-gray-50 p-6 rounded-2xl border border-gray-100">
               <p class="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1">Precio Final</p>
-              <p class="text-4xl font-black text-casa-teal">${property.precioLista} <span class="text-sm text-gray-400 font-bold">{property.moneda}</span></p>
+              <p class="text-4xl font-black text-casa-teal leading-none">{dualPrice?.usdFormatted || '$0'} <span class="text-sm text-gray-400 font-bold">USD</span></p>
+              <p class="text-xl font-black text-[#D4AF37] font-mono mt-1.5">{dualPrice?.bobFormatted || 'Bs. 0'} <span class="text-[10px] text-gray-400 font-normal font-sans">(T.C. {dualPrice?.tc || 6.96})</span></p>
               {#if property.expensas}
                 <p class="text-xs text-gray-500 font-medium mt-2">+ Expensas: {property.expensas}</p>
               {/if}

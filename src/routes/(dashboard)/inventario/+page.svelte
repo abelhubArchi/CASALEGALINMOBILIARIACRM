@@ -4,6 +4,7 @@
   import { db } from '#lib/firebase';
   import { collection, doc, updateDoc, arrayUnion, getDocs, query, orderBy } from 'firebase/firestore';
   import { onMount } from 'svelte';
+  import { getDualPrice } from '#lib/currency';
 
   let properties = $state([]);
   let loading = $state(true);
@@ -180,6 +181,7 @@
   {:else}
     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 pb-10">
       {#each filteredProperties as prop}
+        {@const prices = getDualPrice(prop.precioLista, prop.moneda)}
         <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group flex flex-col relative">
           
           <a href="/inmuebles/{prop.id}" class="block">
@@ -247,8 +249,16 @@
           <div class="px-6 pb-6 mt-auto">
             <div class="flex items-center justify-between mt-auto pt-2">
               <div>
-                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Precio de {prop.tipoOperacion}</p>
-                <span class="text-casa-teal font-black text-2xl">${prop.precioLista}</span>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-0.5">Precio de {prop.tipoOperacion}</p>
+                <div class="flex flex-col">
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-casa-teal font-black text-2xl leading-none">{prices.usdFormatted}</span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">USD</span>
+                  </div>
+                  <span class="text-xs font-bold text-[#D4AF37] font-mono mt-1 block">
+                    {prices.bobFormatted} <span class="text-[10px] font-sans text-gray-400 font-medium">(T.C. {prices.tc})</span>
+                  </span>
+                </div>
               </div>
               
               <button 

@@ -1,4 +1,4 @@
-s{
+{
 	"extends": "$app/tsconfig",
 	"compilerOptions": {
 		"strict": true
