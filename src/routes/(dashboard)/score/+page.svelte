@@ -28,7 +28,17 @@
     ExternalLink,
     Megaphone,
     Check,
-    AlertCircle
+    AlertCircle,
+    FileText,
+    Download,
+    Scale,
+    Building,
+    Clock,
+    Calculator,
+    Calendar,
+    DollarSign,
+    Percent,
+    ShieldAlert
   } from 'lucide-svelte';
   import { authState } from '#lib/authStore.svelte.js';
   import { onMount, onDestroy } from 'svelte';
@@ -39,9 +49,10 @@
     onSnapshot,
     updateDoc
   } from 'firebase/firestore';
-  import { getDualPrice } from '#lib/currency';
+  import { getDualPrice, TIPO_CAMBIO_OFICIAL } from '#lib/currency';
+  import { descargarContratoPDF } from '#lib/contratoAsesor.js';
 
-  // 1. Estructura de Niveles Oficiales (Sin descripciones de plantillas o flyers, completamente limpia)
+  // 1. Estructura de Niveles Oficiales: Base Contractual (20%) + Bonos de Desempeño
   const tiers = [
     {
       id: 'junior',
@@ -49,7 +60,8 @@
       rango: '0 - 100 PTS',
       minPts: 0,
       maxPts: 100,
-      comision: '50%',
+      comision: '20% Base',
+      bonoInfo: 'Base Contractual (Cláusula 6)',
       colorBadge: 'bg-slate-700/80 text-slate-200 border-slate-600',
       colorGlow: 'from-slate-600 to-slate-800',
       icon: Shield
@@ -60,7 +72,8 @@
       rango: '101 - 300 PTS',
       minPts: 101,
       maxPts: 300,
-      comision: '60%',
+      comision: '20% + Bono Pro',
+      bonoInfo: '+10% Bono Fondo Franquicia',
       colorBadge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
       colorGlow: 'from-emerald-600 to-teal-800',
       icon: Zap
@@ -71,7 +84,8 @@
       rango: '301 - 600 PTS',
       minPts: 301,
       maxPts: 600,
-      comision: '70%',
+      comision: '20% + Bono Elite',
+      bonoInfo: '+20% Bono Fondo Franquicia',
       colorBadge: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
       colorGlow: 'from-[#D4AF37] to-amber-700',
       icon: Trophy
@@ -82,7 +96,8 @@
       rango: '600+ PTS',
       minPts: 601,
       maxPts: 1000,
-      comision: '80%',
+      comision: '20% + Bono Master',
+      bonoInfo: '+30% Bono Fondo Franquicia',
       colorBadge: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
       colorGlow: 'from-purple-600 to-indigo-900',
       icon: Crown
@@ -177,6 +192,40 @@
   let myProperties = $state([]);
   let isUpdatingStatus = $state({});
   let statusSuccessToast = $state(null);
+
+  // Control de visualización del Contrato Oficial y Simulador de Operación
+  let showContractDetails = $state(true);
+  let isDownloadingPDF = $state(false);
+
+  // Simulador de Liquidación de Comisión Oficial (Cláusula Sexta)
+  let simMontoVenta = $state(85000);
+  let simPorcentajeComision = $state(4); // 4% comisión inmobiliaria de mercado
+  let simComisionBrutaUSD = $derived((simMontoVenta * simPorcentajeComision) / 100);
+  let simComisionBrutaBOB = $derived(simComisionBrutaUSD * TIPO_CAMBIO_OFICIAL);
+
+  // 20% Asesor Inmobiliario (Honorarios por intermediación y asesoría efectiva)
+  let simSplitAsesorUSD = $derived((simComisionBrutaUSD * 20) / 100);
+  let simSplitAsesorBOB = $derived(simSplitAsesorUSD * TIPO_CAMBIO_OFICIAL);
+
+  // 10% Inmobiliaria Casa Legal (Uso de marca y soporte corporativo)
+  let simSplitInmoUSD = $derived((simComisionBrutaUSD * 10) / 100);
+  let simSplitInmoBOB = $derived(simSplitInmoUSD * TIPO_CAMBIO_OFICIAL);
+
+  // 10% Gastos de Administración (Operación Directa)
+  let simSplitAdminUSD = $derived((simComisionBrutaUSD * 10) / 100);
+  let simSplitAdminBOB = $derived(simSplitAdminUSD * TIPO_CAMBIO_OFICIAL);
+
+  const handleDescargarContrato = () => {
+    isDownloadingPDF = true;
+    try {
+      descargarContratoPDF(authState.profile || {});
+    } catch (e) {
+      console.error('Error al generar PDF de contrato:', e);
+      alert('Error al descargar contrato: ' + e.message);
+    } finally {
+      setTimeout(() => isDownloadingPDF = false, 1500);
+    }
+  };
 
   // Formatear Nombre (Primer Nombre + Primer Apellido)
   const getShortName = (nombres, apellidos, fallbackFull) => {
@@ -489,8 +538,8 @@
       </p>
     </div>
 
-    <!-- BOTONES DE ACCIÓN: REFRESCAR Y CÓMO SUMAR PUNTOS -->
-    <div class="flex items-center gap-3 shrink-0">
+    <!-- BOTONES DE ACCIÓN: REFRESCAR, CONTRATO Y PUNTOS -->
+    <div class="flex flex-wrap items-center gap-3 shrink-0">
       <button
         type="button"
         onclick={recalculateAll}
@@ -501,14 +550,38 @@
         <RefreshCw size={16} class={isRefreshing ? 'animate-spin' : ''} />
       </button>
 
+      <!-- BOTÓN DESCARGAR CONTRATO PDF -->
+      <button
+        type="button"
+        onclick={handleDescargarContrato}
+        disabled={isDownloadingPDF}
+        class="px-4 py-3 rounded-2xl bg-[#0a201b] hover:bg-[#12362e] border border-[#D4AF37]/40 text-[#D4AF37] font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
+        title="Descargar Contrato Oficial de Asesor en PDF"
+      >
+        <Download size={16} class="text-[#D4AF37] {isDownloadingPDF ? 'animate-bounce' : ''}" />
+        <span>{isDownloadingPDF ? 'Generando...' : 'Contrato PDF'}</span>
+      </button>
+
+      <!-- BOTÓN TOGGLE RÉGIMEN CONTRACTUAL -->
+      <button
+        type="button"
+        onclick={() => (showContractDetails = !showContractDetails)}
+        class="px-4 py-3 rounded-2xl bg-[#0e2a23] hover:bg-[#153830] border border-[#1b4a3f] text-emerald-400 font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
+      >
+        <Scale size={16} />
+        <span>{showContractDetails ? 'Ocultar Contrato' : 'Términos Contractuales'}</span>
+        {#if showContractDetails}<ChevronUp size={15}/>{:else}<ChevronDown size={15}/>{/if}
+      </button>
+
+      <!-- BOTÓN CÓMO SUMAR PUNTOS -->
       <button
         type="button"
         onclick={() => (showRules = !showRules)}
-        class="px-5 py-3 rounded-2xl bg-[#0f2a24] hover:bg-[#163a32] border border-[#1b4a3f] text-[#D4AF37] font-bold text-xs uppercase tracking-wider flex items-center gap-2.5 shadow-lg transition-all hover:scale-105 active:scale-95"
+        class="px-4 py-3 rounded-2xl bg-[#0f2a24] hover:bg-[#163a32] border border-[#1b4a3f] text-[#D4AF37] font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
       >
         <HelpCircle size={16} />
-        <span>{showRules ? 'Ocultar Puntos' : '¿Cómo Sumar Puntos?'}</span>
-        {#if showRules}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
+        <span>{showRules ? 'Ocultar Puntos' : 'Puntajes'}</span>
+        {#if showRules}<ChevronUp size={15}/>{:else}<ChevronDown size={15}/>{/if}
       </button>
     </div>
   </header>
@@ -655,6 +728,382 @@
       </section>
     {/if}
 
+    <!-- 2.5 SECCIÓN: RÉGIMEN CONTRACTUAL OFICIAL & SIMULADOR DE OPERACIÓN (CLÁUSULAS 5, 6, 8, 10 Y 12) -->
+    {#if showContractDetails}
+      <section class="rounded-3xl bg-gradient-to-br from-[#0c2621] via-[#081b17] to-[#040e0c] border border-[#215246] p-6 md:p-10 shadow-2xl relative overflow-hidden animate-in fade-in duration-300">
+        <!-- Glow y patrón de fondo -->
+        <div class="absolute -top-24 -right-24 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+          
+          <!-- Encabezado de la Sección -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#1b4339]">
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="px-3 py-1 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <Scale size={13} /> Contrato de Prestación de Servicios
+                </span>
+                <span class="text-xs text-slate-400 font-bold flex items-center gap-1">
+                  <Building size={12} class="text-[#D4AF37]" /> Sede El Alto / La Paz (Torre CAUSAE 6.° Piso)
+                </span>
+              </div>
+              <h2 class="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                Régimen Contractual Oficial & Distribución de Ingresos
+              </h2>
+              <p class="text-slate-300 text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
+                Términos legales vinculantes suscritos con <strong class="text-white">CASA LEGAL FIRMA LEGAL & INMOBILIARIA S.R.L.</strong> Conoce la distribución de tus comisiones (Cláusula 6), vigencia, cuota operativa y pacto de no competencia.
+              </p>
+            </div>
+
+            <!-- Botón de Descarga Inmediata del Contrato -->
+            <button
+              type="button"
+              onclick={handleDescargarContrato}
+              disabled={isDownloadingPDF}
+              class="px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-amber-500 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+            >
+              <Download size={18} class="{isDownloadingPDF ? 'animate-bounce' : ''}" />
+              <span>{isDownloadingPDF ? 'Generando PDF...' : 'Descargar Contrato PDF'}</span>
+            </button>
+          </div>
+
+          <!-- PARTE 1: DISTRIBUCIÓN LEGAL DE INGRESOS (CLÁUSULA SEXTA) -->
+          <div class="mb-10">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-black uppercase tracking-wider text-[#D4AF37] flex items-center gap-2">
+                <Percent size={16} /> Distribución de Comisión por Operación (Cláusula Sexta)
+              </h3>
+              <span class="text-[11px] text-slate-400">Total 100% de la comisión inmobiliaria</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+              
+              <!-- 20% ASESOR -->
+              <div class="p-6 rounded-2xl bg-[#071915] border-2 border-[#D4AF37]/60 relative overflow-hidden shadow-xl hover:border-[#D4AF37] transition-all">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] text-[10px] font-black uppercase tracking-wider">
+                    Honorarios Asesor
+                  </span>
+                  <div class="w-8 h-8 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center">
+                    <Briefcase size={16} />
+                  </div>
+                </div>
+                <div class="text-4xl md:text-5xl font-black text-[#D4AF37] font-mono tracking-tight mb-2">
+                  20%
+                </div>
+                <h4 class="text-white font-bold text-sm mb-1.5">El Asesor Inmobiliario</h4>
+                <p class="text-slate-400 text-xs leading-relaxed">
+                  Porcentaje asignado directamente al Asesor por la labor de intermediación, captación, asesoría y cierre efectivo. Emite su factura individual.
+                </p>
+              </div>
+
+              <!-- 10% INMOBILIARIA -->
+              <div class="p-6 rounded-2xl bg-[#071915] border border-[#1d463d] relative overflow-hidden shadow-xl hover:border-emerald-500/50 transition-all">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                    Franquicia & Marca
+                  </span>
+                  <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <Building size={16} />
+                  </div>
+                </div>
+                <div class="text-4xl md:text-5xl font-black text-emerald-400 font-mono tracking-tight mb-2">
+                  10%
+                </div>
+                <h4 class="text-white font-bold text-sm mb-1.5">Inmobiliaria Casa Legal</h4>
+                <p class="text-slate-400 text-xs leading-relaxed">
+                  Destinado a favor de la inmobiliaria por concepto de derecho de uso de marca, soporte corporativo, asesoría legal y plataforma.
+                </p>
+              </div>
+
+              <!-- 10% GASTOS ADMINISTRATIVOS -->
+              <div class="p-6 rounded-2xl bg-[#071915] border border-[#1d463d] relative overflow-hidden shadow-xl hover:border-blue-500/50 transition-all">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-wider">
+                    Operación Directa
+                  </span>
+                  <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <FileCheck size={16} />
+                  </div>
+                </div>
+                <div class="text-4xl md:text-5xl font-black text-blue-400 font-mono tracking-tight mb-2">
+                  10%
+                </div>
+                <h4 class="text-white font-bold text-sm mb-1.5">Gastos de Administración</h4>
+                <p class="text-slate-400 text-xs leading-relaxed">
+                  Aporte en Operación Directa destinado a la gestión administrativa, auditoría documental de inmuebles y soporte operativo por cada cierre.
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- PARTE 2: VIGENCIA, FECHAS Y CLÁUSULAS ESENCIALES (CLÁUSULAS 5, 8, 10, 11 Y 12) -->
+          <div class="mb-10">
+            <h3 class="text-sm font-black uppercase tracking-wider text-[#D4AF37] flex items-center gap-2 mb-4">
+              <Clock size={16} /> Plazos, Fechas Límite y Cláusulas Operativas
+            </h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              
+              <!-- VIGENCIA -->
+              <div class="p-4 rounded-2xl bg-[#051411] border border-[#173a32] flex items-start gap-3.5">
+                <div class="p-2.5 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0 mt-0.5">
+                  <Calendar size={18} />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <h4 class="text-white font-bold text-xs">Vigencia del Contrato</h4>
+                    <span class="text-[9px] font-mono text-[#D4AF37] font-bold">CLÁUSULA 10</span>
+                  </div>
+                  <p class="text-emerald-400 font-black text-sm font-mono">1 (UN) Año Calendario</p>
+                  <p class="text-slate-400 text-[11px] mt-1 leading-snug">
+                    Renovación tácita automática salvo notificación escrita con <strong class="text-slate-200">7 días</strong> de anticipación.
+                  </p>
+                </div>
+              </div>
+
+              <!-- CUOTA MENSUAL OPERATIVA -->
+              <div class="p-4 rounded-2xl bg-[#051411] border border-[#173a32] flex items-start gap-3.5">
+                <div class="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 shrink-0 mt-0.5">
+                  <DollarSign size={18} />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <h4 class="text-white font-bold text-xs">Cuota Mensual Operativa</h4>
+                    <span class="text-[9px] font-mono text-amber-400 font-bold">CLÁUSULA 5</span>
+                  </div>
+                  <p class="text-amber-400 font-black text-sm font-mono">Hasta el Día 5 del Mes</p>
+                  <p class="text-slate-400 text-[11px] mt-1 leading-snug">
+                    Cancelada por adelantado para CRM, IA Gemini, hosting, soporte, capacitaciones y fondo de bonos.
+                  </p>
+                </div>
+              </div>
+
+              <!-- PREAVISO DE TERMINACIÓN -->
+              <div class="p-4 rounded-2xl bg-[#051411] border border-[#173a32] flex items-start gap-3.5">
+                <div class="p-2.5 rounded-xl bg-blue-500/15 text-blue-400 shrink-0 mt-0.5">
+                  <AlertCircle size={18} />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <h4 class="text-white font-bold text-xs">Preaviso de Resolución</h4>
+                    <span class="text-[9px] font-mono text-blue-400 font-bold">CLÁUSULA 8</span>
+                  </div>
+                  <p class="text-blue-400 font-black text-sm font-mono">30 Días Calendario</p>
+                  <p class="text-slate-400 text-[11px] mt-1 leading-snug">
+                    Conforme al Art. 1255 del Código de Comercio, resolución por escrito con preaviso formal.
+                  </p>
+                </div>
+              </div>
+
+              <!-- RETIRO DE PUBLICIDAD Y MARCA -->
+              <div class="p-4 rounded-2xl bg-[#051411] border border-[#173830] flex items-start gap-3.5">
+                <div class="p-2.5 rounded-xl bg-purple-500/15 text-purple-400 shrink-0 mt-0.5">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <h4 class="text-white font-bold text-xs">Baja de Marca y Fanpages</h4>
+                    <span class="text-[9px] font-mono text-purple-400 font-bold">CLÁUSULA 8</span>
+                  </div>
+                  <p class="text-purple-400 font-black text-sm font-mono">5 Días Hábiles</p>
+                  <p class="text-slate-400 text-[11px] mt-1 leading-snug">
+                    Plazo para dar de baja fanpages, retirar letreros y devolver material institucional tras la resolución.
+                  </p>
+                </div>
+              </div>
+
+              <!-- PACTO DE NO COMPETENCIA -->
+              <div class="p-4 rounded-2xl bg-[#051411] border border-[#173830] flex items-start gap-3.5">
+                <div class="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0 mt-0.5">
+                  <ShieldAlert size={18} />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <h4 class="text-white font-bold text-xs">Pacto de No Competencia</h4>
+                    <span class="text-[9px] font-mono text-rose-400 font-bold">CLÁUSULA 12</span>
+                  </div>
+                  <p class="text-rose-400 font-black text-sm font-mono">1 Año / Multa US$ 5.000</p>
+                  <p class="text-slate-400 text-[11px] mt-1 leading-snug">
+                    Art. 1249 Cód. Comercio. Prohibición de operar en líneas competidoras en el área bajo penalidad tasada.
+                  </p>
+                </div>
+              </div>
+
+              <!-- SEDE CORPORATIVA Y ARBITRAJE -->
+              <div class="p-4 rounded-2xl bg-[#051411] border border-[#173830] flex items-start gap-3.5">
+                <div class="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 shrink-0 mt-0.5">
+                  <Building size={18} />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <h4 class="text-white font-bold text-xs">Sede y Arbitraje</h4>
+                    <span class="text-[9px] font-mono text-teal-400 font-bold">CLÁUSULA 11</span>
+                  </div>
+                  <p class="text-teal-400 font-black text-sm font-mono">Torre CAUSAE · El Alto</p>
+                  <p class="text-slate-400 text-[11px] mt-1 leading-snug">
+                    Centro de Conciliación y Arbitraje de la Cámara de Comercio de La Paz con renuncia a la vía ordinaria.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- PARTE 3: SIMULADOR INTERACTIVO DE LIQUIDACIÓN DE COMISIÓN -->
+          <div class="p-6 md:p-8 rounded-3xl bg-[#061612] border border-[#1d463d] shadow-xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#163830]">
+              <div>
+                <h3 class="text-base font-black text-white flex items-center gap-2">
+                  <Calculator size={20} class="text-[#D4AF37]" /> Simulador de Liquidación Contractual en Vivo
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Ingresa cualquier valor de inmueble para calcular la distribución exacta en <strong class="text-white">$ USD</strong> y en <strong class="text-emerald-400">Bs. (T.C. 11.86)</strong>.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 text-xs font-bold text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Tipo de Cambio: <strong class="text-emerald-400 font-mono">11.86 Bs / USD</strong>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              <!-- CONTROLES DEL SIMULADOR -->
+              <div class="lg:col-span-5 space-y-5">
+                <div>
+                  <label for="sim-monto-input" class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">
+                    Valor del Inmueble (USD)
+                  </label>
+                  <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                    <input
+                      id="sim-monto-input"
+                      type="number"
+                      bind:value={simMontoVenta}
+                      min="5000"
+                      step="5000"
+                      class="w-full pl-8 pr-4 py-3 rounded-xl bg-[#091f1a] border border-[#1d463d] text-white font-mono font-bold text-lg focus:outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                  <!-- Botones rápidos de valor -->
+                  <div class="flex flex-wrap gap-2 mt-2.5">
+                    {#each [50000, 85000, 120000, 250000] as preset}
+                      <button
+                        type="button"
+                        onclick={() => (simMontoVenta = preset)}
+                        class="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold {simMontoVenta === preset ? 'bg-[#D4AF37] text-black' : 'bg-[#0a231d] text-slate-300 hover:bg-[#12382e]'} border border-[#1a4238] transition-all"
+                      >
+                        ${(preset / 1000)}k
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+
+                <div>
+                  <label class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">
+                    Comisión Global Pactada (% Transacción)
+                  </label>
+                  <div class="grid grid-cols-3 gap-2">
+                    {#each [3, 4, 5] as pct}
+                      <button
+                        type="button"
+                        onclick={() => (simPorcentajeComision = pct)}
+                        class="py-2.5 rounded-xl font-mono font-bold text-sm text-center border transition-all {simPorcentajeComision === pct ? 'bg-[#D4AF37] text-black border-[#D4AF37] shadow-md' : 'bg-[#091f1a] text-slate-300 border-[#1d463d] hover:border-[#D4AF37]/50'}"
+                      >
+                        {pct}%
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-[#0a231d] border border-[#173a32] text-xs text-slate-400">
+                  <span class="text-white font-bold block mb-1">Total Comisión Recaudada:</span>
+                  <div class="flex items-baseline justify-between">
+                    <span class="text-xl font-black text-white font-mono">${simComisionBrutaUSD.toLocaleString()} USD</span>
+                    <span class="text-sm font-bold text-emerald-400 font-mono">Bs. {simComisionBrutaBOB.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- DESGLOSE DE DISTRIBUCIÓN CONTRACTUAL -->
+              <div class="lg:col-span-7 space-y-4">
+                
+                <!-- 20% ASESOR -->
+                <div class="p-4 rounded-2xl bg-[#071d18] border-2 border-[#D4AF37]/60 flex items-center justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="w-3 h-3 rounded-full bg-[#D4AF37]"></span>
+                      <h4 class="font-bold text-white text-sm">Tu Comisión Asesor (20%)</h4>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Honorarios líquidos por intermediación y asesoría</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xl md:text-2xl font-black text-[#D4AF37] font-mono leading-none">
+                      ${simSplitAsesorUSD.toLocaleString(undefined, { maximumFractionDigits: 1 })} USD
+                    </p>
+                    <p class="text-xs font-bold text-slate-300 font-mono mt-1">
+                      Bs. {simSplitAsesorBOB.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 10% INMOBILIARIA -->
+                <div class="p-4 rounded-2xl bg-[#071d18] border border-[#1b4339] flex items-center justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                      <h4 class="font-bold text-white text-sm">Inmobiliaria Casa Legal (10%)</h4>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Uso de marca, soporte corporativo y respaldo</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-lg font-black text-emerald-400 font-mono leading-none">
+                      ${simSplitInmoUSD.toLocaleString(undefined, { maximumFractionDigits: 1 })} USD
+                    </p>
+                    <p class="text-xs font-bold text-slate-400 font-mono mt-1">
+                      Bs. {simSplitInmoBOB.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 10% ADMINISTRACIÓN -->
+                <div class="p-4 rounded-2xl bg-[#071d18] border border-[#1b4339] flex items-center justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="w-3 h-3 rounded-full bg-blue-400"></span>
+                      <h4 class="font-bold text-white text-sm">Gastos de Administración (10%)</h4>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Operación directa por transacción comercial</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-lg font-black text-blue-400 font-mono leading-none">
+                      ${simSplitAdminUSD.toLocaleString(undefined, { maximumFractionDigits: 1 })} USD
+                    </p>
+                    <p class="text-xs font-bold text-slate-400 font-mono mt-1">
+                      Bs. {simSplitAdminBOB.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- NOTA DE BONIFICACIÓN DEL SCORE -->
+                <div class="p-3.5 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center gap-3">
+                  <Trophy size={20} class="text-[#D4AF37] shrink-0" />
+                  <p class="text-xs text-slate-300 leading-snug">
+                    <strong class="text-[#D4AF37]">Plus por Casa Legal Score:</strong> Tu rango actual es <strong class="text-white">{currentTier.name}</strong> ({currentPoints} PTS). El Score acumula tu mérito para fondos de bonificación e incentivos adicionales de fin de período.
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+    {/if}
+
     <!-- 3. GRID PRINCIPAL: RANGOS LIMPIOS + AUDITORÍA DE CAPTACIONES + LEADERBOARD & MARKETING -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
       
@@ -719,11 +1168,11 @@
                 <!-- Comisión Porcentual Destacada -->
                 <div class="mt-4 p-4 rounded-xl bg-[#061411]/90 border border-[#173830] flex items-center justify-between">
                   <div>
-                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-black block">Comisión Directa</span>
-                    <span class="text-xs text-slate-300 font-medium">Porcentaje por cierre</span>
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-black block">Comisión & Mérito</span>
+                    <span class="text-xs text-emerald-400 font-bold">{tier.bonoInfo}</span>
                   </div>
                   <div class="text-right">
-                    <span class="text-4xl font-black text-[#D4AF37] font-mono leading-none">{tier.comision}</span>
+                    <span class="text-2xl md:text-3xl font-black text-[#D4AF37] font-mono leading-none">{tier.comision}</span>
                   </div>
                 </div>
 

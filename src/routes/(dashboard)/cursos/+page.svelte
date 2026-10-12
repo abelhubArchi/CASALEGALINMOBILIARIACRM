@@ -258,42 +258,55 @@ En la sección **Clientes** podrás estructurar tu embudo comercial:
     {
       id: 'modulo-7',
       num: 7,
-      title: 'Casa Legal Score & Comisiones en Vivo',
-      subtitle: 'Sistema de gamificación real con escala del 50% al 80%',
+      title: 'Régimen Contractual & Comisiones Oficiales (20% / 10% / 10%)',
+      subtitle: 'Distribución legal de ingresos (Cláusula 6), cuota al día 5, vigencia de 1 año y Score',
       icon: Trophy,
-      duration: '6 min',
-      badge: 'Escala 50% - 80%',
+      duration: '7 min',
+      badge: 'Contrato Oficial',
       objectives: [
-        'Conocer la escala de los 4 rangos de comisión directa.',
-        'Aprender a sumar puntos estratégicamente mediante captaciones y ventas reales.',
-        'Revisar tu posición en el Leaderboard auditado de la franquicia.'
+        'Dominar la distribución legal de ingresos: 20% Asesor, 10% Inmobiliaria y 10% Gastos de Administración.',
+        'Conocer la fecha de la cuota operativa mensual (hasta el día 5 de cada mes).',
+        'Comprender la vigencia de 1 año del contrato, preaviso de 30 días y pacto de no competencia.',
+        'Saber cómo el Casa Legal Score activa bonos e incentivos de mérito sobre la base contractual.'
       ],
       content: `
-### 1. Gamificación y Mérito en Tiempo Real
-En Casa Legal tu porcentaje de comisión no es fijo ni arbitrario: **crece en proporción directa a tus resultados**. A través del módulo **Casa Legal Score** (\`/score\`), el sistema calcula de manera 100% transparente tus puntos a partir de tus captaciones y ventas registradas en la base de datos:
+### 1. El Marco Legal y Económico Oficial de Casa Legal
+El ejercicio de la actividad de asesoría inmobiliaria en nuestra red se rige formalmente por el **Contrato Privado de Prestación de Servicios de Agencia Inmobiliaria**, suscrito en nuestra sede central de la ciudad de **El Alto / La Paz** (Torre CAUSAE 6.º Piso). A continuación, se detallan las cláusulas económicas y operativas esenciales:
 
-### 2. La Escala Oficial de Comisiones
-Existen 4 rangos escalonados según tus Puntos Totales (PTS) acumulados en el mes:
+### 2. Distribución Contractual de Ingresos (Cláusula Sexta)
+Como fruto del esfuerzo conjunto entre **EL ASESOR** y **CASA LEGAL FIRMA LEGAL & INMOBILIARIA S.R.L.**, los ingresos por comisiones de intermediación se liquidan formalmente bajo el siguiente desglose:
 
-| Rango | Puntos Requeridos | Comisión por Cierre | Requisito Mensual |
-| :--- | :---: | :---: | :--- |
-| **Asesor Junior** | 0 - 100 PTS | **50%** | Nivel inicial de bienvenida |
-| **Casa Legal Pro** | 101 - 300 PTS | **60%** | 2 captaciones exclusivas o 1 venta |
-| **Casa Legal Elite** | 301 - 600 PTS | **70%** | Rendimiento sostenido y cierres |
-| **Socio Master** | 600+ PTS | **80%** | Máximo nivel de la franquicia |
+| Beneficiario / Concepto | Porcentaje Contractual | Fundamento Legal & Operativo |
+| :--- | :---: | :--- |
+| **EL ASESOR INMOBILIARIO** | **20%** | Honorarios directos por la labor de intermediación y asesoría efectiva en el cierre. |
+| **INMOBILIARIA CASA LEGAL** | **10%** | Derecho de uso de marca, soporte corporativo, licencias y respaldo institucional. |
+| **GASTOS DE ADMINISTRACIÓN** | **10%** | Retención para gastos administrativos en Operación Directa por cada transacción. |
 
-### 3. Puntos Auditados por Acción
-- **Venta Concretada:** \`+100 PTS\` (Cierre de cualquier inmueble marcado como Vendido).
-- **Captación en Exclusiva:** \`+30 PTS\` (Contrato formal firmado).
-- **Captación Saneada con Precio Real:** \`+15 PTS\` (Folio real al día, impuestos y planos).
-- **Captación Estándar:** \`+10 PTS\` (Propiedad activa sin exclusividad).
+*Nota fiscal:* Conforme a la Cláusula 6, cada parte emitirá la factura fiscal correspondiente por los ingresos efectivamente percibidos.
 
-### 4. Leaderboard Real
-En el panel lateral del módulo Score podrás ver el ranking en vivo de todos los asesores de Casa Legal, clasificados por sus puntos reales calculados en tiempo real.
+### 3. Cuota Mensual Operativa y Marca (Cláusula Quinta)
+- **Vencimiento Improrrogable:** Debe ser cancelada puntualmente **hasta el día 5 de cada mes adelantado**.
+- **Destino del Aporte:** Mantenimiento de plataformas tecnológicas (CRM en la nube, Inteligencia Artificial Gemini 2.5, servidores), soporte técnico, capacitaciones de la academia y bolsa de bonos e incentivos.
+- **Uso Obligatorio de Marca:** Todo arte publicitario, letrero, banner y fanpage debe incluir obligatoriamente el nombre del asesor junto a la marca oficial: *CASA LEGAL FIRMA LEGAL & INMOBILIARIA S.R.L.*
+
+### 4. Plazos, Tiempos de Contrato & Sanciones
+- **Vigencia del Contrato (Cláusula 10):** Tendrá una duración de **1 (UN) año calendario** a partir de su suscripción, con **renovación tácita automática** salvo que alguna de las partes notifique su intención contraria con al menos **7 días** de anticipación.
+- **Resolución & Preaviso (Cláusula 8):** Podrá resolverse conforme al Art. 1255 del Código de Comercio con un preaviso mínimo escrito de **30 días calendario**. A la conclusión, el asesor dispone de **5 días hábiles** para dar de baja fanpages, retirar carteles y devolver credenciales.
+- **Pacto de No Competencia (Cláusula 12):** Conforme al Art. 1249 del Código de Comercio, el asesor no podrá operar ni promover líneas inmobiliarias competidoras dentro del área durante el plazo de **1 año**, bajo pena de penalidad tasada de **US$ 5,000 (Cinco Mil Dólares Americanos)**.
+- **Arbitraje & Jurisdicción (Cláusula 11):** Resolución de controversias administrada por el Centro de Conciliación y Arbitraje Comercial de la Cámara de Comercio de La Paz.
+
+### 5. Cómo el "Casa Legal Score" Premia tu Rendimiento
+El sistema **Casa Legal Score** (\`/score\`) audita tus acciones en el CRM para otorgarte puntos que desbloquean bonos de productividad adicionales sobre la base contractual:
+- **Venta Concretada:** \`+100 PTS\`
+- **Captación en Exclusiva:** \`+30 PTS\`
+- **Captación Saneada con Documentos al Día:** \`+15 PTS\`
+- **Captación Estándar:** \`+10 PTS\`
+- **Leads y Visitas:** \`+5 PTS\` cada uno
+Los asesores que alcanzan los niveles Pro, Elite y Socio Master acceden a bonificaciones especiales del fondo de incentivos y comisiones preferenciales en la Bolsa MLS.
       `,
-      tip: 'Si subes 2 captaciones en exclusiva con documentación al día, obtienes 90 puntos casi de inmediato. Con una sola visita o lead adicional subes a Casa Legal Pro (60% de comisión).',
+      tip: 'Mantén siempre al día tu cuota operativa antes del día 5 de cada mes para asegurar la vigencia de tu cuenta, la visibilidad de tus propiedades y la acumulación de tus puntos Score.',
       routeLink: '/score',
-      routeLabel: 'Auditar Mi Casa Legal Score'
+      routeLabel: 'Auditar Mi Casa Legal Score y Contrato'
     },
     {
       id: 'modulo-8',
@@ -454,10 +467,25 @@ Para evitar discrepancias y brindar certeza absoluta a tus clientes, Casa Legal 
       description: 'Estructuración de textos de alto impacto comercial, selección de fotografías vendedoras y distribución en canales digitales.'
     },
     {
+      id: 'regimen-contractual-asesor',
+      type: 'guide',
+      title: 'Marco Jurídico & Contrato Oficial del Asesor Inmobiliario',
+      subtitle: 'Cláusulas esenciales: 20% Asesor, 10% Inmobiliaria, 10% Admin, cuota al día 5 y vigencia de 1 año.',
+      category: 'legal',
+      categoryLabel: 'Marco Jurídico',
+      duration: '9 min de lectura',
+      level: 'Fundamental',
+      lessonsCount: 5,
+      isPrimary: false,
+      badge: 'Contrato Oficial',
+      image: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80',
+      description: 'Análisis cláusula por cláusula del Contrato Oficial de Prestación de Servicios: régimen de split de ingresos, fecha límite de cuota operativa, resolución unilateral, no competencia territorial y arbitraje en La Paz.'
+    },
+    {
       id: 'carrera-socio-master',
       type: 'guide',
-      title: 'De Asesor Junior a Socio Master (80% Comisión)',
-      subtitle: 'Estrategia mensual para escalar en la tabla de comisiones Casa Legal Score.',
+      title: 'Carrera de Rendimiento & Casa Legal Score',
+      subtitle: 'Estrategia mensual para escalar y maximizar bonificaciones sobre la base contractual.',
       category: 'carrera',
       categoryLabel: 'Carrera & Comisiones',
       duration: '7 min de lectura',
@@ -466,7 +494,7 @@ Para evitar discrepancias y brindar certeza absoluta a tus clientes, Casa Legal 
       isPrimary: false,
       badge: 'Alto Rendimiento',
       image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32b7?auto=format&fit=crop&w=800&q=80',
-      description: 'La fórmula matemática para superar los 600 puntos mensuales combinando captaciones exclusivas, ventas propias y cierres compartidos.'
+      description: 'La fórmula matemática para superar los 600 puntos mensuales combinando captaciones exclusivas, ventas propias y cierres compartidos para acceder a los bonos del fondo corporativo.'
     }
   ];
 

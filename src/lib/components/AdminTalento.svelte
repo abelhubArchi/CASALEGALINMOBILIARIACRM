@@ -1,14 +1,19 @@
 <script>
-  import { UserPlus, UploadCloud, CheckCircle, FileText, Image as ImageIcon, MapPin, Building, CreditCard, ChevronRight, ChevronLeft, ShieldCheck, Mail, Phone, User, Loader2, X, Lock, Plus } from 'lucide-svelte';
+  import { UserPlus, UploadCloud, CheckCircle, FileText, Image as ImageIcon, MapPin, Building, CreditCard, ChevronRight, ChevronLeft, ShieldCheck, Mail, Phone, User, Loader2, X, Lock, Plus, Sparkles, Download } from 'lucide-svelte';
   
   import { auth, db, storage } from '#lib/firebase';
   import { createUserWithEmailAndPassword } from 'firebase/auth';
   import { doc, setDoc } from 'firebase/firestore';
   import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
   import Credencial from '#lib/components/Credencial.svelte';
+  import GenerarAgenteIA from '#lib/components/GenerarAgenteIA.svelte';
+  import { descargarContratoPDF } from '#lib/contratoAsesor.js';
 
   let currentStep = $state(1);
   const totalSteps = 5;
+
+  let showModalIA = $state(false);
+  let iaNotification = $state('');
 
   let formData = $state({
     nombres: '',
@@ -20,10 +25,34 @@
     fechaNacimiento: '',
     nit: '',
     calle: '',
-    ciudad: '',
-    departamento: 'Santa Cruz',
+    ciudad: 'El Alto',
+    departamento: 'La Paz',
     experiencia: '0-2 años'
   });
+
+  const handleApplyIAData = ({ formData: extracted, fileIdentificacion }) => {
+    if (extracted.nombres) formData.nombres = extracted.nombres;
+    if (extracted.apellidos) formData.apellidos = extracted.apellidos;
+    if (extracted.ci) formData.ci = extracted.ci;
+    if (extracted.fechaNacimiento) formData.fechaNacimiento = extracted.fechaNacimiento;
+    if (extracted.calle) formData.calle = extracted.calle;
+    if (extracted.ciudad) formData.ciudad = extracted.ciudad;
+    if (extracted.departamento) formData.departamento = extracted.departamento;
+
+    // Sugerir email si está vacío
+    if (!formData.email && extracted.nombres && extracted.apellidos) {
+      const pNombre = extracted.nombres.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const pApellido = extracted.apellidos.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      formData.email = `${pNombre}.${pApellido}@casalegal.bo`;
+    }
+
+    if (fileIdentificacion) {
+      files.identificacion = fileIdentificacion;
+    }
+
+    iaNotification = `¡Datos de ${extracted.nombres} ${extracted.apellidos} y Cédula inyectados con éxito! El contrato ya está disponible para descargar.`;
+    setTimeout(() => iaNotification = '', 9000);
+  };
 
   // Archivos reales
   let files = $state({
@@ -148,15 +177,53 @@
   
   <div class="max-w-5xl mx-auto w-full">
     <!-- Header -->
-    <div class="flex items-center gap-4 mb-8">
-      <div class="p-4 bg-casa-teal/10 text-casa-teal rounded-2xl shadow-sm border border-casa-teal/20">
-        <UserPlus size={36} strokeWidth={1.5} />
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div class="flex items-center gap-4">
+        <div class="p-4 bg-casa-teal/10 text-casa-teal rounded-2xl shadow-sm border border-casa-teal/20">
+          <UserPlus size={36} strokeWidth={1.5} />
+        </div>
+        <div>
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-casa-dark tracking-tight">Onboarding de Talento</h1>
+          <p class="text-gray-500 text-sm sm:text-lg mt-1">Registra y habilita el acceso para nuevos asesores de Casa Legal en Bolivia.</p>
+        </div>
       </div>
-      <div>
-        <h1 class="text-4xl font-extrabold text-casa-dark tracking-tight">Onboarding de Talento</h1>
-        <p class="text-gray-500 text-lg mt-1">Registra y habilita el acceso para nuevos asesores de Casa Legal en Bolivia.</p>
-      </div>
+
+      <!-- BOTÓN INNOVADOR: GENERAR AGENTE IA -->
+      <button 
+        type="button" 
+        onclick={() => showModalIA = true}
+        class="group relative inline-flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-[#0c3641] via-[#145366] to-[#0c3641] text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all border border-casa-gold/40 cursor-pointer overflow-hidden"
+      >
+        <div class="absolute inset-0 bg-gradient-to-r from-casa-gold/20 via-transparent to-casa-gold/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="p-2 bg-casa-gold/20 text-casa-gold rounded-xl border border-casa-gold/30">
+          <Sparkles size={20} class="animate-pulse" />
+        </div>
+        <div class="text-left">
+          <span class="block leading-none font-black text-white text-xs sm:text-sm flex items-center gap-1.5">
+            Generar Agente IA
+            <span class="px-1.5 py-0.5 text-[9px] bg-casa-gold text-[#0c3641] rounded-full uppercase tracking-tighter">Gemini 2.5</span>
+          </span>
+          <span class="block text-[10px] text-casa-gold font-bold tracking-widest mt-1">Cédula + Contrato Automático</span>
+        </div>
+      </button>
     </div>
+
+    <!-- Notificación IA si fue inyectado -->
+    {#if iaNotification}
+      <div class="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-2xl flex items-center justify-between gap-3 text-teal-800 text-sm font-semibold shadow-sm animate-in fade-in slide-in-from-top-2">
+        <div class="flex items-center gap-2">
+          <CheckCircle size={18} class="text-teal-600 shrink-0" />
+          <span>{iaNotification}</span>
+        </div>
+        <button 
+          type="button" 
+          onclick={() => descargarContratoPDF(formData)}
+          class="px-4 py-1.5 bg-white border border-teal-300 text-[#0c3641] hover:bg-teal-100 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shrink-0"
+        >
+          <Download size={14} class="text-teal-600" /> Descargar Contrato PDF
+        </button>
+      </div>
+    {/if}
 
     <!-- Progress Indicator -->
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
@@ -192,7 +259,41 @@
       <!-- STEP 1: Datos Personales -->
       {#if currentStep === 1}
         <div class="p-8 md:p-12 absolute inset-0 animate-in fade-in slide-in-from-right-8 duration-500 overflow-y-auto">
-          <h2 class="text-2xl font-bold text-casa-dark mb-6 flex items-center gap-2"><User class="text-casa-teal"/> Información Personal</h2>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <h2 class="text-2xl font-bold text-casa-dark flex items-center gap-2"><User class="text-casa-teal"/> Información Personal</h2>
+            
+            {#if formData.ci && formData.nombres}
+              <button 
+                type="button" 
+                onclick={() => descargarContratoPDF(formData)}
+                class="px-3.5 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-[#0c3641] rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                title="Descargar contrato con los datos actuales"
+              >
+                <Download size={14} class="text-teal-600" /> Contrato Asesor (PDF)
+              </button>
+            {/if}
+          </div>
+
+          <!-- Banner Sugerencia IA en Paso 1 -->
+          <div class="mb-6 p-4 bg-gradient-to-r from-teal-50 via-emerald-50/50 to-teal-50 border border-teal-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="p-2.5 bg-[#0c3641] text-casa-gold rounded-xl shadow-inner">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-[#0c3641]">¿Tienes la Cédula de Identidad en foto?</h4>
+                <p class="text-xs text-gray-600">Súbela y Gemini 2.5 completará este formulario y redactará el contrato oficial en segundos.</p>
+              </div>
+            </div>
+            <button 
+              type="button" 
+              onclick={() => showModalIA = true}
+              class="px-4 py-2 bg-gradient-to-r from-[#0c3641] to-[#145366] text-white hover:brightness-110 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shrink-0 uppercase tracking-wider"
+            >
+              <Sparkles size={14} class="text-casa-gold" /> Auto-llenar con IA
+            </button>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="space-y-2">
               <label class="text-sm font-bold text-casa-dark uppercase tracking-wider">Nombres</label>
@@ -354,6 +455,32 @@
               </div>
             {/if}
 
+            <!-- Tarjeta de Contrato Generado en Expediente Digital -->
+            <div class="md:col-span-2 p-5 bg-gradient-to-r from-[#0c3641] to-[#124d5c] text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md border border-casa-gold/30">
+              <div class="flex items-center gap-3">
+                <div class="p-3 bg-casa-gold/20 text-casa-gold rounded-xl border border-casa-gold/30">
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <h4 class="font-bold text-sm text-white">Contrato de Prestación de Servicios (Agencia Inmobiliaria)</h4>
+                  <p class="text-xs text-gray-300">
+                    {#if formData.nombres && formData.ci}
+                      Inyectado con los datos de <strong class="text-casa-gold">{formData.nombres} {formData.apellidos}</strong> (CI: {formData.ci}).
+                    {:else}
+                      Se inyectarán los datos personales del asesor automáticamente.
+                    {/if}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onclick={() => descargarContratoPDF(formData)}
+                class="px-5 py-2.5 bg-casa-gold text-[#0c3641] hover:brightness-110 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-lg transition-all shrink-0 uppercase tracking-wider"
+              >
+                <Download size={14} /> Descargar Contrato PDF
+              </button>
+            </div>
+
           </div>
         </div>
       {/if}
@@ -448,7 +575,7 @@
             currentStep = 1;
             formData = {
               nombres: '', apellidos: '', ci: '', email: '', telefono: '', rol: 'ASESOR', fechaNacimiento: '',
-              nit: '', calle: '', ciudad: '', departamento: 'Santa Cruz', experiencia: '0-2 años'
+              nit: '', calle: '', ciudad: 'El Alto', departamento: 'La Paz', experiencia: '0-2 años'
             };
             files = { foto: null, identificacion: null, comprobanteDomicilio: null, otrosDocumentos: [] };
             registeredAsesor = null;
@@ -461,4 +588,9 @@
     </div>
 
   </div>
+
+  <!-- Modal Generar Agente IA -->
+  <GenerarAgenteIA bind:open={showModalIA} onApplyData={handleApplyIAData} />
+
 </div>
+
