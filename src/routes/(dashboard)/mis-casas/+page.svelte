@@ -107,6 +107,8 @@
     } finally {
       shortUrlLoading[prop.id] = false;
     }
+  };
+
   const cambiarEstadoPropiedad = async (propId, nuevoEstado) => {
     try {
       await updateDoc(doc(db, 'inmuebles', propId), { estado: nuevoEstado });
