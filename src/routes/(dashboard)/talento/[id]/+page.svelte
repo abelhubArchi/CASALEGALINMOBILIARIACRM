@@ -285,7 +285,7 @@
         <h2 class="text-xl font-extrabold text-casa-dark mb-6 flex items-center gap-2">
           <ShieldCheck size={22} class="text-casa-gold"/> Credencial Oficial del Asesor
         </h2>
-        <Credencial asesor={credencialAsesor} showButtons={false} />
+        <Credencial asesor={credencialAsesor} showButtons={true} />
       </div>
 
       <!-- Sección Privada & Expediente Digital (SOLO SUPER ADMINISTRADORES @casalegaladmin.com) -->

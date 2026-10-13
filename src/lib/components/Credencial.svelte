@@ -3,11 +3,121 @@
   import logoInmo from '../assets/logoinmo.png';
   import { toPng } from 'html-to-image';
   import jsPDF from 'jspdf';
+  import { 
+    Download, 
+    Printer, 
+    Edit3, 
+    Sparkles, 
+    RotateCcw, 
+    Upload, 
+    Check, 
+    User, 
+    Briefcase,
+    ShieldCheck,
+    PenTool,
+    Phone,
+    MapPin,
+    Calendar,
+    Hash,
+    ChevronDown,
+    ChevronUp
+  } from 'lucide-svelte';
 
   let { asesor = {}, showButtons = true } = $props();
 
   let credencialElement;
   let downloading = $state(false);
+
+  // Panel de edición de la credencial
+  let showEditPanel = $state(false);
+  let nombreEditable = $state('');
+  let funcionEditable = $state('ASESOR INMOBILIARIO');
+  let credencialNumEditable = $state('CLI-VERIFICADO');
+  let validaHastaEditable = $state('DICIEMBRE 2027');
+  let telefonoEditable = $state('+591 70000000');
+  let ciudadEditable = $state('La Paz - El Alto');
+  let signaturePreview = $state(null);
+  let prevAsesor = $state(null);
+
+  // Sincronizar datos reactivamente al recibir o cambiar el objeto asesor
+  $effect(() => {
+    if (asesor !== prevAsesor) {
+      prevAsesor = asesor;
+      const full = (asesor.nombreCompleto || `${asesor.nombres || ''} ${asesor.apellidos || ''}`).trim();
+      nombreEditable = full || 'NOMBRE DEL TITULAR';
+      
+      const rawRol = asesor.rol || asesor.cargo || asesor.funcion || '';
+      if (rawRol.toUpperCase().includes('LIDER') || rawRol.toUpperCase().includes('LÍDER')) {
+        funcionEditable = 'LÍDER DE EQUIPO';
+      } else if (rawRol.toUpperCase().includes('BROKER')) {
+        funcionEditable = 'BROKER ASOCIADO';
+      } else if (rawRol.toUpperCase().includes('DIRECTOR')) {
+        funcionEditable = 'DIRECTOR COMERCIAL';
+      } else if (rawRol) {
+        funcionEditable = rawRol.toUpperCase();
+      } else {
+        funcionEditable = 'ASESOR INMOBILIARIO';
+      }
+
+      credencialNumEditable = asesor.ci ? `CLI-${asesor.ci}` : (asesor.credencialNum || 'CLI-VERIFICADO');
+      validaHastaEditable = asesor.validaHasta || 'DICIEMBRE 2027';
+      telefonoEditable = asesor.telefono || '+591 70000000';
+      ciudadEditable = asesor.departamento || asesor.ciudad || 'La Paz - El Alto';
+      signaturePreview = asesor.firma || asesor.documentos?.firma || null;
+    }
+  });
+
+  // Cálculo dinámico de tamaño de letra para que el NOMBRE NUNCA tenga salto de línea
+  let nameFontSize = $derived.by(() => {
+    const len = (nombreEditable || '').trim().length;
+    if (len <= 14) return '21px';
+    if (len <= 18) return '18.5px';
+    if (len <= 22) return '16.5px';
+    if (len <= 26) return '15px';
+    if (len <= 30) return '13.5px';
+    return '12px';
+  });
+
+  // Cálculo de tamaño para la FUNCIÓN / ROL (visualmente más grande y destacada)
+  let roleFontSize = $derived.by(() => {
+    const len = (funcionEditable || '').trim().length;
+    if (len <= 18) return '13.5px';
+    if (len <= 24) return '12px';
+    return '11px';
+  });
+
+  // Roles predefinidos de liderazgo y asesoría en Casa Legal
+  const rolePresets = [
+    'ASESOR INMOBILIARIO',
+    'LÍDER DE EQUIPO',
+    'TEAM LEADER',
+    'DIRECTOR COMERCIAL',
+    'BROKER ASOCIADO',
+    'GERENTE DE VENTAS',
+    'SOCIO MASTER',
+    'ASESOR SENIOR'
+  ];
+
+  const resetData = () => {
+    const full = (asesor.nombreCompleto || `${asesor.nombres || ''} ${asesor.apellidos || ''}`).trim();
+    nombreEditable = full || 'NOMBRE DEL TITULAR';
+    funcionEditable = 'ASESOR INMOBILIARIO';
+    credencialNumEditable = asesor.ci ? `CLI-${asesor.ci}` : 'CLI-VERIFICADO';
+    validaHastaEditable = 'DICIEMBRE 2027';
+    telefonoEditable = asesor.telefono || '+591 70000000';
+    ciudadEditable = asesor.departamento || asesor.ciudad || 'La Paz - El Alto';
+    signaturePreview = asesor.firma || asesor.documentos?.firma || null;
+  };
+
+  const handleSignatureUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      signaturePreview = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   onMount(() => {
     if (!window.matchMedia('(prefers-reduced-motion:reduce)').matches) {
@@ -52,7 +162,6 @@
 
     // Intento 2: Proxy weserv.nl (Global CORS CDN)
     try {
-      const cleanUrl = url.split('?')[0]; // Firebase storage clean URL
       const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(url)}`;
       const res = await fetch(proxyUrl);
       if (res.ok) {
@@ -133,7 +242,9 @@
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       pdf.addImage(dataUrl, 'PNG', 10, 15, pdfWidth, pdfHeight);
-      const filename = `Credencial_${asesor.nombres || 'Asesor'}_${asesor.apellidos || ''}.pdf`.replace(/\s+/g, '_');
+      const safeNombre = (nombreEditable || 'Asesor').replace(/[^a-zA-Z0-9]/g, '_');
+      const safeRol = (funcionEditable || 'Credencial').replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Credencial_${safeNombre}_${safeRol}.pdf`;
       pdf.save(filename);
 
     } catch (err) {
@@ -153,17 +264,222 @@
   };
 </script>
 
-<div class="flex flex-col items-center gap-4 w-full h-auto min-h-[600px] overflow-visible py-4">
+<div class="flex flex-col items-center gap-6 w-full h-auto min-h-[600px] overflow-visible py-4 font-sans">
 {#if showButtons}
-  <div class="bar flex gap-4 flex-wrap justify-center items-center text-sm text-gray-500 mb-4 print:hidden">
-    <span>Credencial Oficial de {asesor.nombres || ''} {asesor.apellidos || ''}</span>
-    <button onclick={downloadPDF} disabled={downloading} class="px-4 py-2 rounded-full border border-casa-gold text-casa-dark hover:bg-casa-gold font-bold transition-colors disabled:opacity-50">
-      {downloading ? 'Generando PDF...' : 'Descargar PDF'}
-    </button>
-    <button onclick={printCredencial} class="px-4 py-2 rounded-full border border-casa-gold text-casa-dark hover:bg-casa-gold font-bold transition-colors">Imprimir</button>
+  <!-- BARRA DE ACCIÓN SUPERIOR -->
+  <div class="bar w-full max-w-4xl flex flex-col sm:flex-row gap-3 justify-between items-center p-3 sm:p-4 bg-white/95 backdrop-blur-md rounded-2xl border border-casa-gold/30 shadow-lg text-sm print:hidden">
+    <div class="flex items-center gap-2.5">
+      <div class="p-2 bg-casa-gold/15 text-casa-dark rounded-xl border border-casa-gold/30">
+        <ShieldCheck size={20} class="text-[#8c6a26]" />
+      </div>
+      <div>
+        <span class="block text-xs font-black uppercase tracking-wider text-[#0c3641]">
+          Credencial Oficial Casa Legal
+        </span>
+        <span class="text-[11px] text-gray-500 font-medium">
+          {nombreEditable || 'Titular'} • <strong class="text-[#8c6a26]">{funcionEditable}</strong>
+        </span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-wrap justify-center">
+      <!-- Botón para alternar panel de edición -->
+      <button 
+        type="button"
+        onclick={() => showEditPanel = !showEditPanel}
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border {showEditPanel ? 'bg-[#0c3641] text-white border-[#0c3641] shadow-md' : 'bg-amber-50 text-[#8c6a26] border-casa-gold/50 hover:bg-amber-100'}"
+      >
+        <Edit3 size={14} />
+        {showEditPanel ? 'Cerrar Edición' : 'Personalizar / Editar'}
+        {#if showEditPanel}
+          <ChevronUp size={14} />
+        {:else}
+          <ChevronDown size={14} />
+        {/if}
+      </button>
+
+      <!-- Botón Descargar PDF -->
+      <button 
+        type="button"
+        onclick={downloadPDF} 
+        disabled={downloading} 
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#d9b25a] via-[#e8c875] to-[#c79a3c] text-[#0c3641] font-black text-xs uppercase tracking-wider hover:brightness-105 active:scale-95 transition-all shadow-md disabled:opacity-50 cursor-pointer"
+      >
+        <Download size={14} />
+        {downloading ? 'Generando...' : 'Descargar PDF'}
+      </button>
+
+      <!-- Botón Imprimir -->
+      <button 
+        type="button"
+        onclick={printCredencial} 
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
+      >
+        <Printer size={14} />
+        Imprimir
+      </button>
+    </div>
   </div>
+
+  <!-- PANEL DE EDICIÓN FLOTANTE / EXPANDIBLE -->
+  {#if showEditPanel}
+    <div class="edit-panel w-full max-w-4xl bg-gradient-to-br from-white via-[#faf8f2] to-[#f4ede0] p-6 rounded-3xl border-2 border-casa-gold/40 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-300 print:hidden space-y-5">
+      <div class="flex items-center justify-between border-b border-casa-gold/20 pb-4">
+        <div class="flex items-center gap-2.5">
+          <Sparkles size={20} class="text-[#8c6a26]" />
+          <div>
+            <h3 class="text-base font-extrabold text-[#0c3641]">Personalización en Tiempo Real de la Credencial</h3>
+            <p class="text-xs text-gray-500">Modifica el nombre, asigna roles de líder o asesor y añade firma. Los cambios se visualizan inmediatamente.</p>
+          </div>
+        </div>
+        <button 
+          type="button" 
+          onclick={resetData} 
+          class="text-xs text-gray-500 hover:text-red-600 flex items-center gap-1 font-semibold transition-colors"
+          title="Restablecer valores originales"
+        >
+          <RotateCcw size={13} /> Restablecer
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- NOMBRE DEL TITULAR (Sin salto de línea) -->
+        <div class="space-y-1.5">
+          <label class="block text-xs font-black uppercase tracking-wider text-[#0c3641] flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><User size={14} class="text-[#8c6a26]"/> Nombre en Credencial</span>
+            <span class="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+              ✓ Sin salto de línea (Ajuste automático)
+            </span>
+          </label>
+          <input 
+            type="text" 
+            bind:value={nombreEditable} 
+            placeholder="Ej: LIC. CARLOS EDUARDO GUTIÉRREZ"
+            class="w-full px-4 py-2.5 bg-white border border-gray-300 focus:border-casa-gold focus:ring-2 focus:ring-casa-gold/20 rounded-xl font-bold text-gray-800 text-sm uppercase tracking-wide transition-all shadow-sm outline-none"
+          />
+          <p class="text-[11px] text-gray-500">
+            El texto se adapta automáticamente a una sola línea para evitar cortes en el frente de la credencial.
+          </p>
+        </div>
+
+        <!-- FUNCIÓN / ROL -->
+        <div class="space-y-1.5">
+          <label class="block text-xs font-black uppercase tracking-wider text-[#0c3641] flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><Briefcase size={14} class="text-[#8c6a26]"/> Función o Cargo</span>
+            <span class="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full font-bold border border-amber-200">
+              Formato Destacado
+            </span>
+          </label>
+          <input 
+            type="text" 
+            bind:value={funcionEditable} 
+            placeholder="Ej: LÍDER DE EQUIPO"
+            class="w-full px-4 py-2.5 bg-white border border-gray-300 focus:border-casa-gold focus:ring-2 focus:ring-casa-gold/20 rounded-xl font-extrabold text-[#0c3641] text-sm uppercase tracking-wider transition-all shadow-sm outline-none"
+          />
+          <!-- PRESETS DE CARGOS RÁPIDOS -->
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider self-center mr-1">Rápidos:</span>
+            {#each rolePresets as preset}
+              <button 
+                type="button"
+                onclick={() => funcionEditable = preset}
+                class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg border transition-all {funcionEditable === preset ? 'bg-[#0c3641] text-casa-gold border-[#0c3641] shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-casa-gold hover:text-[#0c3641]'}"
+              >
+                {preset}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- CREDENCIAL N° Y VALIDEZ -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[11px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
+              <Hash size={12} class="text-[#8c6a26]"/> N° Credencial
+            </label>
+            <input 
+              type="text" 
+              bind:value={credencialNumEditable} 
+              placeholder="CLI-VERIFICADO"
+              class="w-full px-3 py-2 bg-white border border-gray-300 focus:border-casa-gold rounded-xl font-bold text-xs uppercase text-gray-800 shadow-sm outline-none"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[11px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
+              <Calendar size={12} class="text-[#8c6a26]"/> Válida Hasta
+            </label>
+            <input 
+              type="text" 
+              bind:value={validaHastaEditable} 
+              placeholder="DICIEMBRE 2027"
+              class="w-full px-3 py-2 bg-white border border-gray-300 focus:border-casa-gold rounded-xl font-bold text-xs uppercase text-gray-800 shadow-sm outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- TELÉFONO Y CIUDAD -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[11px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
+              <Phone size={12} class="text-[#8c6a26]"/> Teléfono
+            </label>
+            <input 
+              type="text" 
+              bind:value={telefonoEditable} 
+              placeholder="+591 70000000"
+              class="w-full px-3 py-2 bg-white border border-gray-300 focus:border-casa-gold rounded-xl font-bold text-xs text-gray-800 shadow-sm outline-none"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[11px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1">
+              <MapPin size={12} class="text-[#8c6a26]"/> Sede / Ciudad
+            </label>
+            <input 
+              type="text" 
+              bind:value={ciudadEditable} 
+              placeholder="La Paz - El Alto"
+              class="w-full px-3 py-2 bg-white border border-gray-300 focus:border-casa-gold rounded-xl font-bold text-xs text-gray-800 shadow-sm outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN FIRMA BLANCA Y DIGITAL -->
+      <div class="p-3.5 bg-amber-500/10 rounded-2xl border border-casa-gold/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-white rounded-xl text-[#0c3641] shadow-xs border border-casa-gold/30">
+            <PenTool size={16} />
+          </div>
+          <div>
+            <h4 class="text-xs font-black uppercase tracking-wider text-[#0c3641]">Cuadro de Firma Blanco Institucional</h4>
+            <p class="text-[11px] text-gray-600">
+              El reverso cuenta con un área blanca limpia con línea de seguridad para firma física con bolígrafo, o puedes cargar una firma digitalizada.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <label class="cursor-pointer px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
+            <Upload size={13} />
+            <span>{signaturePreview ? 'Cambiar Firma Digital' : 'Cargar Firma PNG/JPG'}</span>
+            <input type="file" accept="image/*" onchange={handleSignatureUpload} class="hidden" />
+          </label>
+          {#if signaturePreview}
+            <button 
+              type="button" 
+              onclick={() => signaturePreview = null} 
+              class="px-2.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-bold border border-red-200 transition-colors"
+              title="Quitar firma digital (volver al cuadro en blanco)"
+            >
+              Quitar
+            </button>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
 {/if}
 
+  <!-- CONTENEDOR 3D DE LAS TARJETAS (STAGE) -->
   <div class="stage" bind:this={credencialElement}>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
       <defs>
@@ -185,6 +501,8 @@
         </symbol>
       </defs>
     </svg>
+
+    <!-- FRENTE DE LA CREDENCIAL -->
     <section class="card front" aria-label="Frente">
       <div class="guil"></div>
       <svg class="frame"><use href="#frm"/></svg>
@@ -199,7 +517,8 @@
         </svg>
         <img src={logoInmo} alt="Casa Legal Inmobiliaria" style="width:54px;height:54px;object-fit:contain;mix-blend-mode:multiply;border-radius:50%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5)); font-size:0;">
       </div>
-      <div class="brand">CASA LEGAL</div><div class="sub">INMOBILIARIA</div>
+      <div class="brand">CASA LEGAL</div>
+      <div class="sub">INMOBILIARIA</div>
       
       <div class="photo">
         <div class="in">
@@ -211,8 +530,18 @@
         </div>
       </div>
       
-      <div class="name">{asesor.nombres || 'Nombre'} {asesor.apellidos || 'Apellido'}</div>
-      <div class="role">{asesor.rol || 'ASESOR INMOBILIARIO'}</div>
+      <!-- NOMBRE: 100% SIN SALTO DE LÍNEA Y ESCALADO DINÁMICO -->
+      <div class="name" style="font-size: {nameFontSize};" title={nombreEditable}>
+        {nombreEditable || 'NOMBRE DEL TITULAR'}
+      </div>
+
+      <!-- FUNCIÓN: MÁS GRANDE, DESTACADA Y PRESTIGIOSA -->
+      <div class="role-badge" title={funcionEditable}>
+        <span class="role-text" style="font-size: {roleFontSize};">
+          {funcionEditable || 'ASESOR INMOBILIARIO'}
+        </span>
+      </div>
+
       <div class="orn"><i></i></div>
       
       <div class="foot">
@@ -224,13 +553,14 @@
           </g>
         </svg>
         <div class="meta">
-          <div><small>Credencial n.°</small><span>CLI-VERIFICADO</span></div>
-          <div><small>Válida hasta</small><span>DICIEMBRE 2027</span></div>
+          <div><small>Credencial n.°</small><span>{credencialNumEditable}</span></div>
+          <div><small>Válida hasta</small><span>{validaHastaEditable}</span></div>
         </div>
       </div>
       <div class="sheen"></div><div class="sweep"></div>
     </section>
 
+    <!-- REVERSO DE LA CREDENCIAL -->
     <section class="card back" aria-label="Reverso">
       <div class="guil"></div>
       <svg class="frame"><use href="#frm"/></svg>
@@ -243,16 +573,30 @@
       <div class="vt">Escanea para verificar esta credencial</div>
       <div class="web">casalegalbolivia.com</div>
       <div class="contact">
-        <div><i></i><span>{asesor.telefono || '+591 70000000'}</span></div>
+        <div><i></i><span>{telefonoEditable}</span></div>
         <div><i></i><span>contacto@casalegalbolivia.com</span></div>
-        <div><i></i><span>{asesor.departamento || asesor.ciudad || 'Santa Cruz'}, Bolivia</span></div>
+        <div><i></i><span>{ciudadEditable}, Bolivia</span></div>
       </div>
-      <div class="sign">FIRMA DEL TITULAR</div>
+      
+      <!-- CUADRO DE FIRMA BLANCO INSTITUCIONAL -->
+      <div class="sign-wrapper">
+        <div class="sign-box">
+          {#if signaturePreview}
+            <img src={signaturePreview} alt="Firma del Titular" class="sign-img" />
+          {:else}
+            <div class="sign-guide-line"></div>
+          {/if}
+          <span class="sign-label">FIRMA DEL TITULAR</span>
+        </div>
+        <div class="sign-sublabel">Autorización Oficial • Casa Legal Bolivia</div>
+      </div>
+
       <p class="legal">Esta credencial es personal e intransferible. Identifica a su titular como representante de Casa Legal Inmobiliaria. Si la encuentras, devuélvela a la dirección indicada.</p>
       <div class="sheen"></div><div class="sweep"></div>
     </section>
   </div>
 </div>
+
 
 
 <style>
@@ -424,33 +768,55 @@
   .name {
     font-family: var(--serif);
     font-weight: 700;
-    font-size: 22px;
-    letter-spacing: .07em;
-    line-height: 1.1;
-    margin-top: 20px;
+    letter-spacing: .05em;
+    line-height: 1.15;
+    margin-top: 16px;
     text-align: center;
     background: var(--gold);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    max-width: 100%;
+    width: 100%;
+    max-width: 280px;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    display: block;
   }
   
-  .role {
-    font-size: 9.5px;
-    letter-spacing: .34em;
-    margin-top: 8px;
-    color: var(--ivory);
-    font-weight: 400;
-    padding-left: .34em;
+  .role-badge {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 280px;
+    padding: 3px 14px;
+    border-radius: 9999px;
+    background: rgba(12, 58, 45, 0.65);
+    border: 1px solid rgba(223, 188, 102, 0.55);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 240, 190, 0.2);
+    white-space: nowrap !important;
+  }
+
+  .role-text {
+    font-weight: 800;
+    letter-spacing: .22em;
+    color: #fff6da;
     text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 10px rgba(223, 188, 102, 0.4);
   }
   
   .orn {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 13px 0 12px;
+    margin: 11px 0 10px;
     width: 150px;
   }
   
@@ -599,27 +965,79 @@
     flex: none;
   }
   
-  .sign {
-    width: 200px;
-    margin-top: 20px;
-    border-top: 1px solid rgba(223,188,102,.6);
-    padding-top: 4px;
-    font-size: 8.5px;
-    color: var(--gt);
-    letter-spacing: .14em;
+  /* CUADRO DE FIRMA BLANCO INSTITUCIONAL */
+  .sign-wrapper {
+    width: 220px;
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+  }
+
+  .sign-box {
+    width: 100%;
+    height: 52px;
+    background: #ffffff !important;
+    border-radius: 6px;
+    border: 1.5px solid #dfbc66;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.06), 0 4px 14px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 4px 8px 4px;
+    position: relative;
+    overflow: hidden;
+    background-image: 
+      radial-gradient(circle at 50% 50%, rgba(223, 188, 102, 0.08) 0%, transparent 65%),
+      repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(0, 0, 0, 0.015) 8px, rgba(0, 0, 0, 0.015) 16px) !important;
+  }
+
+  .sign-img {
+    max-height: 34px;
+    max-width: 90%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+    margin-bottom: 2px;
+  }
+
+  .sign-guide-line {
+    width: 85%;
+    height: 1px;
+    border-top: 1px dashed #64748b;
+    margin-bottom: 4px;
+    opacity: 0.75;
+  }
+
+  .sign-label {
+    font-size: 7.5px;
+    font-weight: 800;
+    letter-spacing: .2em;
+    color: #0f172a !important;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .sign-sublabel {
+    font-size: 7px;
+    letter-spacing: .12em;
+    color: #9fb2a9;
+    margin-top: 4px;
+    text-transform: uppercase;
   }
   
   .legal {
     font-size: 8px;
     line-height: 1.55;
     color: #9fb2a9;
-    margin-top: 12px;
+    margin-top: 10px;
     max-width: 236px;
   }
   
   @media print {
     @page { size: A4; margin: 12mm; }
-    .bar, .print\:hidden { display: none; }
+    .bar, .edit-panel, .print\:hidden { display: none !important; }
     .stage { gap: 10mm; perspective: none; }
     .card { transform: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none; }
     .sheen, .sweep { display: none; }

@@ -519,7 +519,9 @@
                 <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nivel de Acceso (Rol en el CRM)</p>
                 <select bind:value={formData.rol} class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-casa-teal outline-none font-extrabold text-casa-dark appearance-none cursor-pointer shadow-sm relative z-20 uppercase tracking-wider">
                   <option value="ASESOR">🏠 Agente Inmobiliario</option>
-                  <option value="BROKER">💼 Broker Líder (Gerente)</option>
+                  <option value="LÍDER DE EQUIPO">⭐ Líder de Equipo (Team Leader)</option>
+                  <option value="DIRECTOR COMERCIAL">🏆 Director Comercial</option>
+                  <option value="BROKER">💼 Broker Asociado (Gerente)</option>
                   <option value="ADMIN">⚙️ Staff / Administrativo</option>
                 </select>
               </div>
