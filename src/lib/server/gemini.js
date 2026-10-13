@@ -1,6 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
 import { OAuth2Client, GoogleAuth } from 'google-auth-library';
-import { env } from '$env/dynamic/private';
 import { execSync } from 'child_process';
 
 let cachedClient = null;
@@ -8,8 +7,8 @@ let cachedClient = null;
 export async function getGeminiClient() {
   if (cachedClient) return cachedClient;
 
-  // 1. Verificar GEMINI_API_KEY o GOOGLE_API_KEY (Recomendado y estándar para Vercel / Producción)
-  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  // 1. Verificar GEMINI_API_KEY o GOOGLE_API_KEY (Recomendado y estándar para Vercel / GCP)
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (apiKey && apiKey.trim()) {
     cachedClient = new GoogleGenAI({
       apiKey: apiKey.trim()
@@ -18,12 +17,12 @@ export async function getGeminiClient() {
   }
 
   // 2. Si se proporcionó una clave de cuenta de servicio de Google Cloud en JSON (en Vercel / Servidor)
-  const serviceAccountJson = env.GOOGLE_APPLICATION_CREDENTIALS_JSON || env.GCP_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
+  const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SERVICE_ACCOUNT_KEY;
   if (serviceAccountJson && serviceAccountJson.trim()) {
     try {
       const credentials = JSON.parse(serviceAccountJson.trim());
-      const projectId = credentials.project_id || env.GOOGLE_CLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
-      const location = env.GOOGLE_CLOUD_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+      const projectId = credentials.project_id || process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
+      const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
       const auth = new GoogleAuth({
         credentials,
@@ -46,8 +45,8 @@ export async function getGeminiClient() {
   }
 
   // 3. Entorno de desarrollo local (Windows / Linux con gcloud CLI autenticado)
-  const projectId = env.GOOGLE_CLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
-  const location = env.GOOGLE_CLOUD_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'casa-legal-bolivia';
+  const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
   try {
     let token = '';
