@@ -181,7 +181,7 @@ export function descargarContratoPDF(asesor = {}, customClausulas = null) {
   const d = getContratoData(asesor);
   const doc = new jsPDF({
     unit: 'pt',
-    format: 'a4' // A4 estándar idéntico al documento original
+    format: 'legal' // oficio, tamaño de la versión oficial del contrato
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();

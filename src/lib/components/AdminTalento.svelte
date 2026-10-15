@@ -6,6 +6,7 @@
   import { doc, setDoc } from 'firebase/firestore';
   import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
   import Credencial from '#lib/components/Credencial.svelte';
+  import Contrato from '#lib/components/Contrato.svelte';
   import GenerarAgenteIA from '#lib/components/GenerarAgenteIA.svelte';
   import { descargarContratoPDF } from '#lib/contratoAsesor.js';
 
@@ -13,6 +14,7 @@
   const totalSteps = 5;
 
   let showModalIA = $state(false);
+  let showContratoPreview = $state(false);
   let iaNotification = $state('');
 
   let formData = $state({
@@ -28,6 +30,26 @@
     ciudad: 'El Alto',
     departamento: 'La Paz',
     experiencia: '0-2 años'
+  });
+
+  const openContratoPreview = () => {
+    const nombre = `${formData.nombres || ''} ${formData.apellidos || ''}`.trim() || 'ASESOR INMOBILIARIO';
+    const direccion = [formData.calle, formData.ciudad || 'El Alto', formData.departamento || 'La Paz']
+      .filter(Boolean)
+      .join(', ');
+
+    showContratoPreview = true;
+    contratoPreviewData = {
+      nombre,
+      ci: formData.ci || 'S/N',
+      domicilio: direccion || 'Domicilio no registrado'
+    };
+  };
+
+  let contratoPreviewData = $state({
+    nombre: 'ASESOR INMOBILIARIO',
+    ci: 'S/N',
+    domicilio: 'Domicilio no registrado'
   });
 
   const handleApplyIAData = ({ formData: extracted, fileIdentificacion }) => {
@@ -265,9 +287,9 @@
             {#if formData.ci && formData.nombres}
               <button 
                 type="button" 
-                onclick={() => descargarContratoPDF(formData)}
+                onclick={openContratoPreview}
                 class="px-3.5 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-[#0c3641] rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-                title="Descargar contrato con los datos actuales"
+                title="Previsualizar el contrato con los datos actuales"
               >
                 <Download size={14} class="text-teal-600" /> Contrato Asesor (PDF)
               </button>
@@ -474,7 +496,7 @@
               </div>
               <button 
                 type="button" 
-                onclick={() => descargarContratoPDF(formData)}
+                onclick={openContratoPreview}
                 class="px-5 py-2.5 bg-casa-gold text-[#0c3641] hover:brightness-110 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-lg transition-all shrink-0 uppercase tracking-wider"
               >
                 <Download size={14} /> Descargar Contrato PDF
@@ -593,6 +615,39 @@
 
   <!-- Modal Generar Agente IA -->
   <GenerarAgenteIA bind:open={showModalIA} onApplyData={handleApplyIAData} />
+
+  {#if showContratoPreview}
+    <div class="fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm p-4 sm:p-6 flex items-center justify-center">
+      <div class="relative w-full max-w-6xl max-h-[96vh] overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-200 bg-[#0B303A] px-5 py-4 text-white">
+          <div>
+            <p class="text-[10px] uppercase tracking-[0.25em] text-casa-gold/80">Vista previa</p>
+            <h3 class="text-lg font-black">Contrato de Agencia Inmobiliaria</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              onclick={() => window.print()}
+              class="inline-flex items-center gap-2 rounded-xl bg-casa-gold px-4 py-2 text-xs font-black uppercase tracking-wider text-[#0B303A] shadow-md"
+            >
+              <Download size={14} /> Guardar PDF (Oficio)
+            </button>
+            <button
+              type="button"
+              onclick={() => showContratoPreview = false}
+              class="rounded-xl border border-white/20 bg-white/5 p-2 text-white hover:bg-white/10"
+              aria-label="Cerrar vista previa"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+        <div class="max-h-[calc(96vh-72px)] overflow-y-auto bg-[#ece7dc] p-3 sm:p-5">
+          <Contrato logo="/logoinmo.png" asesor={contratoPreviewData} />
+        </div>
+      </div>
+    </div>
+  {/if}
 
 </div>
 

@@ -17,18 +17,25 @@
     PenTool,
     Phone,
     MapPin,
-    Calendar,
-    Hash,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Shield,
+    Lock
   } from 'lucide-svelte';
+  import { authState } from '#lib/authStore.svelte.js';
 
   let { asesor = {}, showButtons = true } = $props();
+
+  // Control de permisos: Solo superusuarios (@casalegaladmin.com o bolevel12@gmail.com) pueden editar la credencial
+  let isSuperAdmin = $derived(
+    authState.user?.email?.endsWith('@casalegaladmin.com') ||
+    authState.user?.email === 'bolevel12@gmail.com'
+  );
 
   let credencialElement;
   let downloading = $state(false);
 
-  // Panel de edición de la credencial
+  // Panel de edición de la credencial (restringido a superusuarios)
   let showEditPanel = $state(false);
   let nombreEditable = $state('');
   let funcionEditable = $state('ASESOR INMOBILIARIO');
@@ -283,20 +290,27 @@
     </div>
 
     <div class="flex items-center gap-2 flex-wrap justify-center">
-      <!-- Botón para alternar panel de edición -->
-      <button 
-        type="button"
-        onclick={() => showEditPanel = !showEditPanel}
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border {showEditPanel ? 'bg-[#0c3641] text-white border-[#0c3641] shadow-md' : 'bg-amber-50 text-[#8c6a26] border-casa-gold/50 hover:bg-amber-100'}"
-      >
-        <Edit3 size={14} />
-        {showEditPanel ? 'Cerrar Edición' : 'Personalizar / Editar'}
-        {#if showEditPanel}
-          <ChevronUp size={14} />
-        {:else}
-          <ChevronDown size={14} />
-        {/if}
-      </button>
+      <!-- Botón para alternar panel de edición (SOLO SUPERADMINISTRADORES @casalegaladmin.com) -->
+      {#if isSuperAdmin}
+        <button 
+          type="button"
+          onclick={() => showEditPanel = !showEditPanel}
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border {showEditPanel ? 'bg-[#0c3641] text-white border-[#0c3641] shadow-md' : 'bg-amber-50 text-[#8c6a26] border-casa-gold/50 hover:bg-amber-100'}"
+          title="Personalización reservada para Superusuarios (@casalegaladmin.com)"
+        >
+          <Edit3 size={14} />
+          {showEditPanel ? 'Cerrar Edición' : 'Personalizar / Editar'}
+          {#if showEditPanel}
+            <ChevronUp size={14} />
+          {:else}
+            <ChevronDown size={14} />
+          {/if}
+        </button>
+      {:else}
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 text-gray-600 text-[11px] font-bold border border-gray-200">
+          <Lock size={12} class="text-[#8c6a26]" /> Credencial Oficial Protegida
+        </div>
+      {/if}
 
       <!-- Botón Descargar PDF -->
       <button 
@@ -321,8 +335,8 @@
     </div>
   </div>
 
-  <!-- PANEL DE EDICIÓN FLOTANTE / EXPANDIBLE -->
-  {#if showEditPanel}
+  <!-- PANEL DE EDICIÓN FLOTANTE / EXPANDIBLE (SOLO SUPERUSUARIOS @casalegaladmin.com) -->
+  {#if showEditPanel && isSuperAdmin}
     <div class="edit-panel w-full max-w-4xl bg-gradient-to-br from-white via-[#faf8f2] to-[#f4ede0] p-6 rounded-3xl border-2 border-casa-gold/40 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-300 print:hidden space-y-5">
       <div class="flex items-center justify-between border-b border-casa-gold/20 pb-4">
         <div class="flex items-center gap-2.5">
